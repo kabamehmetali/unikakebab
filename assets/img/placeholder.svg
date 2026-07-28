@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img"
+     aria-label="Photo coming soon">
+  <!--
+    Transparent on purpose. The frame around it paints the cream background, so
+    this artwork can be centred with object-fit:contain and sit perfectly inside
+    a square thumb, a 4:3 card or a tall popup panel without cropping or
+    stretching.  Kept square so it centres evenly in every one of them.
+  -->
+  <defs>
+    <linearGradient id="ukMeat" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e08a1e"/>
+      <stop offset="1" stop-color="#98420a"/>
+    </linearGradient>
+    <linearGradient id="ukSkewer" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c9cbcb"/>
+      <stop offset="1" stop-color="#8d8f90"/>
+    </linearGradient>
+  </defs>
+
+  <g opacity="0.62">
+    <!-- plate -->
+    <ellipse cx="300" cy="300" rx="212" ry="212" fill="none"
+             stroke="#cb8c0e" stroke-opacity=".35" stroke-width="3"/>
+    <ellipse cx="300" cy="300" rx="176" ry="176" fill="#cb8c0e" fill-opacity=".07"/>
+
+    <!-- skewer -->
+    <g transform="rotate(-32 300 300)">
+      <rect x="112" y="291" width="376" height="10" rx="5" fill="url(#ukSkewer)"/>
+      <rect x="112" y="291" width="376" height="4"  rx="2" fill="#e3e4e4"/>
+      <g fill="url(#ukMeat)" stroke="#3a2410" stroke-width="7" stroke-linejoin="round">
+        <rect x="168" y="262" width="66" height="66" rx="24"/>
+        <rect x="242" y="262" width="66" height="66" rx="24"/>
+        <rect x="316" y="262" width="66" height="66" rx="24"/>
+        <rect x="390" y="262" width="66" height="66" rx="24"/>
+      </g>
+      <g fill="#3a2410" opacity=".45">
+        <rect x="186" y="279" width="30" height="7" rx="3.5"/>
+        <rect x="260" y="299" width="30" height="7" rx="3.5"/>
+        <rect x="334" y="279" width="30" height="7" rx="3.5"/>
+        <rect x="408" y="299" width="30" height="7" rx="3.5"/>
+      </g>
+    </g>
+
+    <!-- flame -->
+    <path d="M300 470c-23-15-35-33-35-54 0-23 16-37 21-52 3 12 12 17 19 26 9-11 12-23 11-37
+             19 16 31 39 31 63 0 21-12 39-35 54z" fill="#f4b007"/>
+    <path d="M300 470c-11-8-17-18-17-29 0-13 8-21 11-30 5 11 12 17 12 28 0 11-2 22-6 31z"
+          fill="#c33601"/>
+  </g>
+
+  <text x="300" y="556" text-anchor="middle"
+        font-family="Arial Narrow, Arial, sans-serif" font-size="30"
+        letter-spacing="7" fill="#a89a86">UNIKA KEBAB</text>
+</svg>
