@@ -91,10 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // --- 2. Optional Twilio forward. Never fatal, never blocking. -----
     if (setting('sms_enabled', '0') === '1') {
-        $smsBody = "New message via unikakebab.ca\n"
-                 . 'From: ' . $name . ($phone !== '' ? ' (' . $phone . ')' : '') . "\n"
-                 . ($subject !== '' ? $subject . "\n" : '')
-                 . excerpt($message, 300);
+        $smsBody = contact_sms_body($name, $email, $phone, $subject, $message);
 
         try {
             $sms = send_sms(trim(setting('twilio_to_number')), $smsBody);
@@ -180,6 +177,10 @@ $mapTitle = 'Map showing ' . ($addressName !== '' ? $addressName : 'our restaura
           . ($addressText !== '' ? ' at ' . $addressText : '');
 
 $pageKey = 'contact';
+$breadcrumbs = [
+    ['name' => 'Home', 'url' => 'index.php'],
+    ['name' => 'Contact Us', 'url' => 'contact.php'],
+];
 $hero = [
     'eyebrow' => setting('contact_hero_eyebrow', 'Say hello'),
     'title'   => setting('contact_hero_title', 'Contact us'),
@@ -240,7 +241,7 @@ require __DIR__ . '/includes/hero.php';
                   <label class="field__label" for="ct-name">Your name <span class="req">*</span></label>
                   <input class="field__input" type="text" id="ct-name" name="name"
                          value="<?= e(old('name')) ?>" maxlength="120"
-                         placeholder="Mehmet Yilmaz" autocomplete="name" required>
+                         placeholder="John Doe" autocomplete="name" required>
                 </div>
               </div>
               <div class="col-md-6">
@@ -339,7 +340,10 @@ require __DIR__ . '/includes/hero.php';
           <div class="info-card" data-reveal data-reveal-delay="1">
             <div class="info-card__icon"><i class="fa-solid fa-location-dot" aria-hidden="true"></i></div>
             <div class="info-card__label">Come and see us</div>
-            <p class="info-card__value"><?= e(store_address(', ')) ?></p>
+            <a class="info-card__value info-card__address-link" href="<?= e($searchLink) ?>"
+               target="_blank" rel="noopener" aria-label="Open our address in Google Maps">
+              <?= e(store_address(', ')) ?>
+            </a>
             <?php if ($searchLink !== ''): ?>
               <p class="info-card__note">
                 <a class="link-arrow" href="<?= e($searchLink) ?>" target="_blank" rel="noopener">
@@ -444,7 +448,9 @@ require __DIR__ . '/includes/hero.php';
       <h2 class="section-title">Where the coals are</h2>
       <p class="section-text">
         <?php if ($addressText !== ''): ?>
-          <?= e($addressText) ?>
+          <a class="map-address-link" href="<?= e($searchLink) ?>" target="_blank" rel="noopener">
+            <?= e($addressText) ?>
+          </a>
         <?php else: ?>
           Our address is on its way — call us and we will point you to the door.
         <?php endif; ?>

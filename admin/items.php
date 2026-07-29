@@ -26,10 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $uploadError = null;
         $uploaded = save_upload($_FILES['menu_item_placeholder'] ?? [], 'site', 'menu-placeholder', $uploadError);
 
+        // The alt text is saved on its own, so the wording can be corrected
+        // without having to re-upload the image it describes.
+        setting_set(
+            'menu_item_placeholder_alt',
+            mb_substr(trim((string)($_POST['menu_item_placeholder_alt'] ?? '')), 0, 255)
+        );
+
         if ($uploadError !== null) {
             flash(e($uploadError), 'error');
         } elseif ($uploaded === null) {
-            flash('Choose an image to use as the menu item placeholder.', 'error');
+            flash('Placeholder alt text saved.', 'success');
         } else {
             delete_upload(setting('menu_item_placeholder', ''));
             setting_set('menu_item_placeholder', $uploaded);
@@ -175,6 +182,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $image = null;
         }
 
+        // Alt text describes the photo, so it goes when the photo does.
+        $imageAlt = mb_substr(trim((string)($_POST['image_alt'] ?? '')), 0, 255);
+        if ($image === null) {
+            $imageAlt = null;
+        }
+
         $params = [
             $categoryId,
             $name,
@@ -182,6 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $price,
             $priceNote,
             $image,
+            ($imageAlt === '' ? null : $imageAlt),
             ($badge === '' ? null : $badge),
             empty($_POST['is_vegetarian']) ? 0 : 1,
             empty($_POST['is_spicy'])      ? 0 : 1,
@@ -195,7 +209,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db_run(
                 'UPDATE menu_items
                     SET category_id = ?, name = ?, description = ?, price = ?, price_note = ?, image = ?,
-                        badge = ?, is_vegetarian = ?, is_spicy = ?, is_featured = ?, is_active = ?, sort_order = ?
+                        image_alt = ?, badge = ?, is_vegetarian = ?, is_spicy = ?, is_featured = ?,
+                        is_active = ?, sort_order = ?
                   WHERE id = ?',
                 $params
             );
@@ -203,9 +218,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             db_run(
                 'INSERT INTO menu_items
-                    (category_id, name, description, price, price_note, image,
+                    (category_id, name, description, price, price_note, image, image_alt,
                      badge, is_vegetarian, is_spicy, is_featured, is_active, sort_order)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 $params
             );
             flash('“' . e($name) . '” was added to the menu.', 'success');
@@ -369,13 +384,20 @@ require __DIR__ . '/includes/header.php';
       <img class="a-media__preview" id="menuPlaceholderPreview" src="<?= e(menu_item_img(null)) ?>"
            alt="Current menu item placeholder" width="104" height="104">
       <div class="a-media__body">
-        <input type="file" name="menu_item_placeholder" accept="image/*" required data-preview="#menuPlaceholderPreview">
+        <input type="file" name="menu_item_placeholder" accept="image/*" data-preview="#menuPlaceholderPreview">
         <p class="a-field__hint">JPG, PNG or WebP up to 8 MB. A square image works best in menu thumbnails and featured cards.</p>
+
+        <label class="a-field__label a-field__label--sub" for="menu_item_placeholder_alt">Alt text</label>
+        <input class="a-input a-input--sm" type="text"
+               id="menu_item_placeholder_alt" name="menu_item_placeholder_alt"
+               maxlength="255" value="<?= e(setting('menu_item_placeholder_alt')) ?>"
+               placeholder="Unika Kebab menu item photo coming soon">
+        <p class="a-field__hint">Used whenever an item falls back to this image.</p>
       </div>
     </div>
 
     <div class="a-mt">
-      <button class="a-btn" type="submit"><i class="fa-solid fa-upload"></i> Upload placeholder</button>
+      <button class="a-btn" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save placeholder</button>
     </div>
   </form>
 </div>
@@ -708,6 +730,16 @@ require __DIR__ . '/includes/header.php';
                     <span>Remove the current photo</span>
                   </label>
                 <?php endif; ?>
+
+                <label class="a-field__label a-field__label--sub" for="image_alt">Alt text</label>
+                <input class="a-input a-input--sm" type="text" id="image_alt" name="image_alt"
+                       maxlength="255" value="<?= e($val('image_alt', '')) ?>"
+                       placeholder="<?= e(trim(($val('name', '') ?: 'This dish') . ' at ' . setting('site_name', 'Unika Kebab'))) ?>">
+                <p class="a-field__hint">
+                  Describes the photo for screen readers and image search. Say what is on the plate —
+                  &ldquo;Adana kebab in warm pita with pickles and parsley&rdquo; beats &ldquo;food photo&rdquo;.
+                  Blank falls back to the item and category name.
+                </p>
               </div>
             </div>
           </div>

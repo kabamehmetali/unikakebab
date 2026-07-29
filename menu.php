@@ -7,6 +7,10 @@
 require __DIR__ . '/includes/app.php';
 
 $pageKey = 'menu';
+$breadcrumbs = [
+    ['name' => 'Home', 'url' => 'index.php'],
+    ['name' => 'Menu', 'url' => 'menu.php'],
+];
 $hero = [
     'eyebrow'  => setting('menu_hero_eyebrow'),
     'title'    => setting('menu_hero_title', 'The menu'),
@@ -134,6 +138,7 @@ require __DIR__ . '/includes/hero.php';
                      data-dish
                      data-dish-name="<?= e($item['name']) ?>"
                      data-dish-image="<?= e(menu_item_img($image)) ?>"
+                     data-dish-alt="<?= e(menu_item_alt($item, $block['name'] ?? '')) ?>"
                      data-dish-price="<?= e($price) ?>"
                      data-dish-text="<?= e($text) ?>"
                      data-dish-category="<?= e($block['name']) ?>"
@@ -144,8 +149,9 @@ require __DIR__ . '/includes/hero.php';
                   <?php /* In list view a photo-less item stays a clean text row;
                             in photo view it uses the configured placeholder. */ ?>
                   <div class="menu-row__thumb"<?= $image === '' ? ' data-placeholder="1"' : '' ?>>
-                    <img src="<?= e(menu_item_img($image)) ?>" alt="<?= e($item['name']) ?>"
-                         loading="lazy" width="88" height="88">
+                    <img src="<?= e(menu_item_img($image)) ?>"
+                         alt="<?= e(menu_item_alt($item, $block['name'] ?? '')) ?>"
+                         loading="lazy" decoding="async" width="88" height="88">
                   </div>
 
                   <div class="menu-row__body">
@@ -217,12 +223,12 @@ require __DIR__ . '/includes/hero.php';
 <!-- ================= order call to action ================= -->
 <section class="cta-band">
   <div class="container text-center">
-    <span class="eyebrow">Twelve minutes on the coals</span>
-    <h2 class="cta-band__title">Order it hot</h2>
+    <span class="eyebrow">Fresh from the grill</span>
+    <h2 class="cta-band__title">Prepared to order</h2>
     <p class="cta-band__text">
       <?= e($itemCount > 0
-            ? 'Pick your skewer, we will fire the grill the moment your order lands.'
-            : 'Give us a call and we will talk you through what is on the grill today.') ?>
+            ? 'Choose your favourites and place your order online. Each dish is prepared fresh once your order is received.'
+            : 'Call us and our team will be pleased to guide you through today’s selection.') ?>
     </p>
 
     <div class="d-flex flex-column flex-sm-row justify-content-center align-items-stretch gap-3 mt-4">

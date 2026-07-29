@@ -136,7 +136,7 @@ INSERT IGNORE INTO email_templates (id, name, subject, preheader, kind, is_locke
 <hr>
 <h3>While you are here</h3>
 <ul>
-  <li><strong>Order ahead</strong> — pickup is about twelve minutes. <a href="{{order_url}}">Start an order</a>.</li>
+  <li><strong>Order ahead</strong> — choose delivery or pickup. <a href="{{order_url}}">Start an order</a>.</li>
   <li><strong>Come say hi</strong> — {{address}}.</li>
   <li><strong>Big order or catering?</strong> Call {{phone}} and we will sort it out.</li>
 </ul>

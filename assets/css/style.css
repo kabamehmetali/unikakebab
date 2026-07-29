@@ -414,32 +414,247 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
 .u-order-item span { display: block; font-weight: 600; line-height: 1.25; }
 .u-order-item small { color: var(--muted); font-size: 0.78rem; }
 
+/* ---------------------------------------------------------------------
+   6a. Delivery platform marks
+   Each platform's logo is drawn in its own brand colour on a white chip,
+   which is how people recognise them — the gold house chip is kept for
+   everything we do not have a mark for (phone, "all options", etc).
+   --------------------------------------------------------------------- */
+.u-brand--ubereats      { color: #06c167; }
+.u-brand--doordash      { color: #ff3008; }
+.u-brand--skipthedishes { color: #ff8000; }
+.u-brand--grubhub       { color: #f63440; }
+.u-brand--deliveroo     { color: #00ccbc; }
+.u-brand--postmates     { color: #1a1613; }
+
+.u-order-item svg.u-brand,
+.u-order-item i.u-brand {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.u-order-item i.u-brand { padding: 0; font-size: 0.95rem; }
+
 .u-nav__cta { margin-left: 0.75rem; }
 
+/* Burger → X toggler. Hidden on desktop; the panel is a plain flex row there. */
 .u-nav__toggler {
+  display: none;
+  position: relative;
+  z-index: 1042;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  padding: 0;
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  padding: 0.45rem 0.65rem;
-  background: transparent;
+  border-radius: 12px;
+  background: rgba(255, 248, 236, 0.6);
   color: var(--ink);
-  font-size: 1.1rem;
-  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.3s var(--ease), background-color 0.3s var(--ease);
 }
-.u-nav__toggler:focus { box-shadow: none; }
+.u-nav__toggler:hover { border-color: var(--gold); background: var(--gold-soft); }
+.u-nav__toggler:focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 3px; }
 
+.u-nav__burger {
+  display: block;
+  position: relative;
+  width: 20px;
+  height: 14px;
+  margin: 0 auto;
+}
+.u-nav__burger i {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform 0.4s var(--ease), opacity 0.25s var(--ease), width 0.4s var(--ease);
+}
+.u-nav__burger i:nth-child(1) { top: 0; }
+.u-nav__burger i:nth-child(2) { top: 6px; width: 74%; }
+.u-nav__burger i:nth-child(3) { top: 12px; }
+
+/* Open state: top and bottom bars cross, middle bar fades out. */
+.u-nav__toggler[aria-expanded="true"] { border-color: var(--gold); background: var(--gold-soft); }
+.u-nav__toggler[aria-expanded="true"] .u-nav__burger i:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.u-nav__toggler[aria-expanded="true"] .u-nav__burger i:nth-child(2) { opacity: 0; transform: translateX(-10px); }
+.u-nav__toggler[aria-expanded="true"] .u-nav__burger i:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+/* Desktop: the panel wrapper is transparent to the flex layout. */
+@media (min-width: 992px) {
+  .u-nav__panel-inner { display: flex; align-items: center; }
+}
+
+/* ---------------------------------------------------------------------
+   6b. Full-screen mobile menu
+   --------------------------------------------------------------------- */
 @media (max-width: 991.98px) {
   .u-nav__logo { height: 50px; }
-  .navbar-collapse {
-    background: var(--cream);
-    margin: 0.75rem -0.75rem -0.55rem;
-    padding: 0.75rem 1.25rem 1.5rem;
-    border-top: 1px solid var(--line);
+
+  /* Breathing room between the viewport edge and the logo / toggler. */
+  .u-nav .navbar {
+    padding: 0.5rem 0.65rem;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
   }
-  .u-nav__link { display: block; margin: 0; padding: 0.75rem 0 !important; border-bottom: 1px dashed var(--line); }
-  .u-nav__link::after { display: none; }
-  .u-nav .dropdown-menu { border: 0; box-shadow: none; padding: 0.25rem 0 0.5rem; background: transparent; }
-  .u-nav__cta { margin: 1rem 0 0; display: block; }
+  .u-nav__brand { position: relative; z-index: 1042; min-width: 0; }
+  .u-nav__toggler { display: block; }
+
+  /* The panel itself. Sits just under the sticky bar so the logo and the
+     close button stay put, and covers everything below it. */
+  .u-nav__panel {
+    display: block !important;   /* beat Bootstrap's .collapse { display:none } */
+    position: fixed;
+    inset: 0;
+    z-index: 1020;
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
+    padding: calc(var(--nav-h-real, 72px) + 1.75rem) 1.5rem 2.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    background:
+      radial-gradient(120% 55% at 100% 0%, rgba(244, 176, 7, 0.22), transparent 62%),
+      radial-gradient(90% 45% at 0% 100%, rgba(203, 140, 14, 0.16), transparent 60%),
+      linear-gradient(180deg, var(--cream) 0%, var(--cream-2) 100%);
+    /* Curtain-drop reveal. */
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      clip-path 0.62s var(--ease),
+      opacity 0.35s var(--ease),
+      visibility 0s linear 0.62s;
+  }
+  .u-nav__panel.is-open {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    visibility: visible;
+    transition:
+      clip-path 0.62s var(--ease),
+      opacity 0.25s var(--ease),
+      visibility 0s linear 0s;
+  }
+
+  .u-nav__panel-inner {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    max-width: 32rem;
+    margin: 0 auto;
+  }
+  .u-nav__panel .navbar-nav { width: 100%; }
+
+  /* Every direct child of the panel drifts up and fades in, one after the
+     other, once the curtain has started to drop. */
+  .u-nav__panel .nav-item,
+  .u-nav__panel .u-nav__foot {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  }
+  .u-nav__panel.is-open .nav-item,
+  .u-nav__panel.is-open .u-nav__foot { opacity: 1; transform: none; }
+  .u-nav__panel.is-open .nav-item:nth-child(1) { transition-delay: 0.16s; }
+  .u-nav__panel.is-open .nav-item:nth-child(2) { transition-delay: 0.22s; }
+  .u-nav__panel.is-open .nav-item:nth-child(3) { transition-delay: 0.28s; }
+  .u-nav__panel.is-open .nav-item:nth-child(4) { transition-delay: 0.34s; }
+  .u-nav__panel.is-open .nav-item:nth-child(5) { transition-delay: 0.40s; }
+  .u-nav__panel.is-open .u-nav__foot       { transition-delay: 0.48s; }
+
+  /* Big display-face links with a gold rule that sweeps in on tap. */
+  .u-nav__link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0;
+    padding: 1rem 0.15rem !important;
+    font-family: var(--font-display);
+    font-size: 1.9rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+    border-bottom: 1px solid var(--line);
+  }
+  .u-nav__link::after {
+    display: block;
+    left: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--gold);
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  .u-nav__link.active { color: var(--gold-deep) !important; }
+  .u-nav__link.active::after { transform: scaleX(1); }
+
+  /* Order Online block: the dropdown is always open inside the panel. */
+  .u-nav__cta { margin: 1.75rem 0 0; display: block; }
+  .u-nav__cta > .btn-u { width: 100%; justify-content: center; font-size: 0.95rem; }
+  .u-nav__cta-caret { display: none; }
+  .u-nav .dropdown-menu {
+    display: block !important;
+    position: static !important;
+    transform: none !important;
+    float: none;
+    width: 100%;
+    min-width: 0;
+    margin: 0.85rem 0 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .u-nav .dropdown-menu .dropdown-divider { display: none; }
+  .u-nav .dropdown-menu .u-order-item {
+    padding: 0.7rem 0.85rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.55);
+  }
+  .u-nav .dropdown-menu .u-order-item:hover { transform: none; background: var(--gold-soft); }
+
+  /* Panel footer — phone, address, socials. */
+  .u-nav__foot {
+    margin-top: auto;
+    padding-top: 2rem;
+    text-align: center;
+  }
+
+  .u-nav__foot-link {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    color: var(--ink);
+  }
+  .u-nav__foot-link i { color: var(--gold-deep); margin-right: 0.5rem; font-size: 1rem; }
+  .u-nav__foot-address { display: inline-block; margin: 0.4rem 0 1.1rem; font-size: 0.9rem; color: var(--muted); }
+  .u-nav__foot-address:hover { color: var(--gold-deep); }
+
+  .u-nav__socials { display: flex; justify-content: center; gap: 0.6rem; }
+  .u-nav__socials a {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    transition: background-color 0.3s var(--ease), color 0.3s var(--ease), transform 0.3s var(--ease);
+  }
+  .u-nav__socials a:hover { background: var(--gold); color: var(--char); transform: translateY(-3px); }
 }
+
+/* Page behind the open panel must not scroll. */
+body.nav-open { overflow: hidden; }
 
 /* Small laptops (992–1199px).
    Bootstrap pins .container at 960px across this whole range, so the moment
@@ -458,7 +673,9 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
 /* Very small phones: the brand mark takes the room the toggler needs. */
 @media (max-width: 400px) {
   .u-nav__logo { height: 44px; }
-  .u-nav .navbar { padding: 0.45rem 0; }
+  .u-nav .navbar { padding: 0.45rem 0.5rem; }
+  .u-nav__panel { padding-left: 1.15rem; padding-right: 1.15rem; }
+  .u-nav__link { font-size: 1.65rem; }
 }
 
 /* ---------------------------------------------------------------------
@@ -651,6 +868,11 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
   transform: translateY(-8px);
   box-shadow: var(--shadow-lg);
   border-color: rgba(244, 176, 7, 0.5);
+}
+.dish-card[role="button"] { cursor: pointer; }
+.dish-card[role="button"]:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
 }
 
 .dish-card__media {
@@ -961,26 +1183,21 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
 
 [data-view="grid"] .menu-row__thumb {
   flex: none;
+  align-self: stretch;
   width: 100%;
+  max-width: none;
   height: auto;
+  margin: 0;
   aspect-ratio: 4 / 3;
   border: 0;
   border-radius: 0;
 }
-[data-view="grid"] .menu-row__thumb img { transition-duration: 0.8s; }
+[data-view="grid"] .menu-row__thumb img { width: 100%; height: 100%; object-fit: cover; transition-duration: 0.8s; }
 [data-view="grid"] .menu-row:hover .menu-row__thumb img { transform: scale(1.08); }
 
-/* A real photo is cropped to fill the frame — that is what you want of food.
-   The placeholder is not a photo: it is artwork with a logo and a caption, and
-   cropping it to 4:3 cuts the top off the logo and the caption off the bottom.
-   Show that one whole, centred in the frame, whatever shape it was saved at. */
-/* The image already fills the frame from the base rule above; swapping cover
-   for contain letterboxes the artwork inside it instead of cropping it. Do not
-   reach for grid/place-items here — centring the image makes it size to its own
-   content, it grows past the 4:3 frame, and overflow:hidden crops it again. */
+/* Keep uploaded placeholders full-bleed too, so every menu card has the same
+   edge-to-edge media treatment as a card on the home page. */
 [data-view="grid"] .menu-row__thumb[data-placeholder] { background: var(--cream-2); }
-[data-view="grid"] .menu-row__thumb[data-placeholder] img { object-fit: contain; }
-[data-view="grid"] .menu-row:hover .menu-row__thumb[data-placeholder] img { transform: scale(1.04); }
 
 /* One card per row on a phone means a 4:3 photo is a lot of scrolling before
    the next dish — a slightly wider frame keeps more of the menu in view. */
@@ -1309,6 +1526,73 @@ body.has-modal { overflow: hidden; }
 }
 .newsletter__note { font-size: 0.82rem; color: rgba(255, 248, 236, 0.5); margin: 0.9rem 0 0; }
 
+/* Confirmation panel, shown in place of the form once this browser has
+   signed up. Same dark band, so it reads as the form settling rather than
+   a different component appearing. */
+.nl-done {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+  flex-wrap: wrap;
+  padding: 1.35rem 1.5rem;
+  border: 1px solid rgba(244, 176, 7, 0.35);
+  border-radius: var(--radius);
+  background: rgba(244, 176, 7, 0.08);
+  animation: nl-done-in 0.55s var(--ease) both;
+}
+
+.nl-done__check {
+  flex: 0 0 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--char);
+  font-size: 1.05rem;
+  animation: nl-check-pop 0.5s var(--ease) 0.15s both;
+}
+
+.nl-done__body { flex: 1 1 12rem; min-width: 0; }
+.nl-done__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 1.15rem;
+  line-height: 1.2;
+  color: var(--cream);
+}
+.nl-done__email {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  color: rgba(255, 248, 236, 0.62);
+  /* A long address must wrap rather than stretch the panel off-screen. */
+  overflow-wrap: anywhere;
+}
+.nl-done__email i { color: var(--gold); font-size: 0.8rem; flex: 0 0 auto; }
+
+.nl-done__reset { flex: 0 0 auto; margin: 0; }
+@media (max-width: 575.98px) {
+  .nl-done { gap: 0.9rem; }
+  .nl-done__reset { flex: 1 1 100%; }
+  .nl-done__reset .btn-u { width: 100%; justify-content: center; }
+}
+
+@keyframes nl-done-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes nl-check-pop {
+  0%   { opacity: 0; transform: scale(0.4); }
+  60%  { transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 /* ---------------------------------------------------------------------
    13. CTA band
    --------------------------------------------------------------------- */
@@ -1338,6 +1622,8 @@ body.has-modal { overflow: hidden; }
   margin: 0 0 0.6rem;
 }
 .cta-band__text { color: rgba(255, 248, 236, 0.72); margin: 0; }
+.cta-band__address { display: inline-block; color: rgba(255, 248, 236, 0.72); }
+.cta-band__address:hover { color: var(--gold); }
 
 /* Home call-to-action controls form one clean vertical column. */
 .home-cta__actions {
@@ -1393,6 +1679,10 @@ body.has-modal { overflow: hidden; }
 .info-card__value { font-size: 1.08rem; font-weight: 600; color: var(--ink); margin: 0; line-height: 1.5; }
 .info-card__value a { color: var(--ink); }
 .info-card__value a:hover { color: var(--gold-deep); }
+.info-card__address-link { display: block; color: var(--ink); }
+.info-card__address-link:hover { color: var(--gold-deep); text-decoration: underline; text-underline-offset: 0.18em; }
+.map-address-link { color: var(--ink); text-decoration: underline; text-decoration-color: rgba(244, 176, 7, 0.6); text-underline-offset: 0.18em; }
+.map-address-link:hover { color: var(--gold-deep); }
 .info-card__note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
 
 /* Opening hours — every day on its own line, today called out. */
@@ -1615,6 +1905,14 @@ body.has-modal { overflow: hidden; }
   transition: transform 0.45s var(--ease);
 }
 .order-card:hover .order-card__icon { transform: scale(1.07) rotate(-6deg); }
+
+/* A recognised delivery platform swaps the gold tile for its own logo on
+   white — the whole point of the mark is that people spot it at a glance. */
+.order-card__icon:has(.u-brand) {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.order-card__icon .u-brand { width: 30px; height: 30px; font-size: 1.5rem; }
 .order-card__title {
   font-family: var(--font-display);
   font-weight: 400;
@@ -1724,6 +2022,7 @@ body.has-modal { overflow: hidden; }
 .u-foot__contact a { color: rgba(255, 248, 236, 0.68); }
 .u-foot__contact a:hover { color: var(--gold); }
 .u-foot__contact strong { display: block; color: var(--cream); font-weight: 600; }
+.u-foot__address { display: inline-block; }
 
 .u-foot .hours-list li {
   border-bottom-color: rgba(255, 248, 236, 0.1);
@@ -1778,9 +2077,7 @@ body.has-modal { overflow: hidden; }
 }
 .u-foot__credit a {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.42rem;
+  display: inline-block;
   padding-bottom: 0.15rem;
   color: var(--gold);
   font-weight: 700;
@@ -1795,14 +2092,12 @@ body.has-modal { overflow: hidden; }
   left: 0;
   height: 1px;
   background: currentColor;
-  transform: scaleX(0.35);
-  transform-origin: left;
-  transition: transform 0.3s var(--ease);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.4s var(--ease);
 }
-.u-foot__credit a i { font-size: 0.72em; transition: transform 0.3s var(--ease); }
 .u-foot__credit a:hover { color: var(--gold-light); }
-.u-foot__credit a:hover::after { transform: scaleX(1); }
-.u-foot__credit a:hover i { transform: translate(2px, -2px); }
+.u-foot__credit a:hover::after { transform: scaleX(1); transform-origin: left; }
 
 /* back to top */
 .to-top {
@@ -1853,6 +2148,11 @@ body.has-modal { overflow: hidden; }
   }
   [data-reveal] { opacity: 1; transform: none; }
   .hero__bg { animation: none; }
+  /* The panel still has to fully hide itself, so drop the staged reveal
+     entirely rather than leaving a delayed visibility flip behind. */
+  .u-nav__panel { transition: none !important; }
+  .u-nav__panel .nav-item,
+  .u-nav__panel .u-nav__foot { opacity: 1; transform: none; transition: none !important; }
 }
 
 /* ---------------------------------------------------------------------

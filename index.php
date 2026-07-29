@@ -9,6 +9,7 @@ require __DIR__ . '/includes/app.php';
 // Hero content
 // ---------------------------------------------------------------------
 $heroImage  = img(setting('hero_image', 'assets/img/hero-home.jpg'), 'assets/img/hero-home.jpg');
+$heroAlt    = trim(setting('hero_image_alt'));
 $heroLogo   = setting('hero_show_logo', '1') === '1';
 $heroTitle  = setting('hero_title', 'Skewers with a story');
 $heroAccent = setting('hero_title_accent');
@@ -54,9 +55,11 @@ if (!$dishes) {
     );
 }
 
-$storeRow  = store();
-$aboutText = setting('home_about_text');
-$ornament  = url('assets/img/ornament.png');
+$storeRow    = store();
+$phone       = trim((string)($storeRow['phone'] ?? ''));
+$hasOrdering = (bool)order_links();
+$aboutText   = setting('home_about_text');
+$ornament    = url('assets/img/ornament.png');
 
 $pageKey = 'home';
 require __DIR__ . '/includes/header.php';
@@ -64,7 +67,11 @@ require __DIR__ . '/includes/header.php';
 
 <!-- ================= hero ================= -->
 <section class="hero hero--home">
-  <div class="hero__bg" style="background-image:url('<?= e($heroImage) ?>')"></div>
+  <?php /* A CSS background carries no alt, so when the admin has described the
+           photo it is exposed as an image role instead. Left undescribed it
+           stays purely decorative, which is the right call for most heroes. */ ?>
+  <div class="hero__bg" style="background-image:url('<?= e($heroImage) ?>')"
+       <?= $heroAlt !== '' ? 'role="img" aria-label="' . e($heroAlt) . '"' : 'aria-hidden="true"' ?>></div>
   <div class="hero__veil"></div>
 
   <div class="hero__inner">
@@ -79,7 +86,8 @@ require __DIR__ . '/includes/header.php';
       <?php if ($heroLogo): ?>
         <img class="hero__logo"
              src="<?= e(img(setting('logo', 'assets/img/logo.png'), 'assets/img/logo.png')) ?>"
-             alt="<?= e(setting('site_name', 'Unika Kebab') . ' ' . setting('site_tagline', 'Charcoal Grill')) ?>">
+             alt="<?= e(alt_text(setting('logo_alt'), setting('site_name', 'Unika Kebab') . ' ' . setting('site_tagline', 'Charcoal Grill'))) ?>"
+             fetchpriority="high" decoding="async">
       <?php endif; ?>
 
       <?php if (setting('hero_eyebrow') !== ''): ?>
@@ -160,7 +168,8 @@ require __DIR__ . '/includes/header.php';
         <div class="position-relative">
           <div class="media-frame media-frame--wide">
             <img src="<?= e(img(setting('home_about_image', 'assets/img/bg-parchment.jpg'), 'assets/img/hero-home.jpg')) ?>"
-                 alt="<?= e(setting('home_about_title', 'Inside the Unika Kebab kitchen')) ?>" loading="lazy">
+                 alt="<?= e(alt_text(setting('home_about_image_alt'), setting('home_about_title', 'Inside the Unika Kebab kitchen'))) ?>"
+                 loading="lazy" decoding="async">
             <span class="media-frame__outline" aria-hidden="true"></span>
           </div>
           <div class="media-badge">
@@ -225,9 +234,23 @@ require __DIR__ . '/includes/header.php';
             $veg   = !empty($dish['is_vegetarian']);
           ?>
           <div class="col-lg-4 col-md-6" data-reveal data-reveal-delay="<?= (int)($i % 3) + 1 ?>">
-            <article class="dish-card">
+            <article class="dish-card" role="button" tabindex="0"
+                     aria-haspopup="dialog"
+                     aria-label="<?= e($dish['name']) ?> — see details"
+                     data-dish
+                     data-dish-name="<?= e($dish['name']) ?>"
+                     data-dish-image="<?= e(menu_item_img($dish['image'] ?? null)) ?>"
+                     data-dish-alt="<?= e(menu_item_alt($dish, $dish['category_name'] ?? '')) ?>"
+                     data-dish-price="<?= e($price) ?>"
+                     data-dish-text="<?= e($desc) ?>"
+                     data-dish-category="<?= e($dish['category_name'] ?? '') ?>"
+                     data-dish-badge="<?= e($badge) ?>"
+                     data-dish-spicy="<?= $spicy ? '1' : '0' ?>"
+                     data-dish-veg="<?= $veg ? '1' : '0' ?>">
               <div class="dish-card__media">
-                <img src="<?= e(menu_item_img($dish['image'] ?? null)) ?>" alt="<?= e($dish['name']) ?>" loading="lazy">
+                <img src="<?= e(menu_item_img($dish['image'] ?? null)) ?>"
+                     alt="<?= e(menu_item_alt($dish, $dish['category_name'] ?? '')) ?>"
+                     loading="lazy" decoding="async">
                 <?php if (!empty($dish['category_name'])): ?>
                   <span class="dish-card__cat"><?= e($dish['category_name']) ?></span>
                 <?php endif; ?>
@@ -285,6 +308,44 @@ require __DIR__ . '/includes/header.php';
   </div>
 </section>
 
+<?php if ($dishes): ?>
+<!-- ================= dish popup ================= -->
+<div class="dish-modal" id="dishModal" hidden>
+  <div class="dish-modal__backdrop" data-dish-close></div>
+
+  <div class="dish-modal__panel" role="dialog" aria-modal="true" aria-labelledby="dishModalTitle">
+    <button class="dish-modal__close" type="button" data-dish-close aria-label="Close">
+      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+    </button>
+
+    <div class="dish-modal__media">
+      <img id="dishModalImage" src="<?= e(menu_item_img('')) ?>" alt="">
+    </div>
+
+    <div class="dish-modal__body">
+      <span class="dish-modal__cat" id="dishModalCat"></span>
+      <h2 class="dish-modal__title" id="dishModalTitle"></h2>
+      <p class="dish-modal__price" id="dishModalPrice"></p>
+      <p class="dish-modal__text" id="dishModalText"></p>
+      <div class="chips" id="dishModalChips"></div>
+
+      <div class="dish-modal__actions">
+        <?php if ($hasOrdering): ?>
+          <a class="btn-u btn-gold" href="<?= e(url('order.php')) ?>">
+            <i class="fa-solid fa-bag-shopping" aria-hidden="true"></i> Order online
+          </a>
+        <?php endif; ?>
+        <?php if ($phone !== ''): ?>
+          <a class="btn-u btn-outline-char" href="<?= e(phone_href($phone)) ?>">
+            <i class="fa-solid fa-phone" aria-hidden="true"></i> Call to order
+          </a>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 
 <!-- ================= call to action ================= -->
 <section class="cta-band">
@@ -295,7 +356,7 @@ require __DIR__ . '/includes/header.php';
         <?php if (setting('home_cta_eyebrow') !== ''): ?>
           <span class="eyebrow eyebrow--start text-gold"><?= e(setting('home_cta_eyebrow', 'Hungry now?')) ?></span>
         <?php endif; ?>
-        <h2 class="cta-band__title"><?= e(setting('home_cta_title', 'Your kebab is twelve minutes away')) ?></h2>
+        <h2 class="cta-band__title"><?= e(setting('home_cta_title', 'Order with confidence')) ?></h2>
         <?php if (setting('home_cta_text') !== ''): ?>
           <p class="cta-band__text"><?= e(setting('home_cta_text')) ?></p>
         <?php endif; ?>

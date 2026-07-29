@@ -103,10 +103,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect($listUrl . (strpos($listUrl, '?') === false ? '?' : '&') . 'view=' . (int)$row['id']);
         }
 
-        $body = "Unika Kebab — contact form\n"
-              . 'From: ' . $row['name'] . (!empty($row['phone']) ? ' (' . $row['phone'] . ')' : '') . "\n"
-              . (!empty($row['subject']) ? $row['subject'] . "\n" : '')
-              . mb_substr((string)$row['message'], 0, 300);
+        $body = contact_sms_body(
+            (string)$row['name'],
+            (string)$row['email'],
+            (string)($row['phone'] ?? ''),
+            (string)($row['subject'] ?? ''),
+            (string)$row['message']
+        );
 
         $result = send_sms($to, $body);
         db_run(

@@ -37,6 +37,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $wasThere = unsubscribe_email($email);
         $removed  = true;
 
+        // If this is the browser that signed up, the remembered sign-up is
+        // now wrong. Clearing it here means the sign-up form is waiting on
+        // the home page rather than a panel claiming they are subscribed.
+        $remembered = newsletter_remembered();
+        if ($remembered !== null && strcasecmp($remembered['email'], $email) === 0) {
+            newsletter_forget();
+        }
+
         if ($oneClick) {
             // The mail client wants a status code, not a web page.
             http_response_code(200);

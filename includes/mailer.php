@@ -75,51 +75,6 @@ function mail_problems(): array
 }
 
 // =====================================================================
-//  Absolute URLs
-//  Links inside an email have to work from somebody else's inbox, so
-//  every one of them is spelled out in full.
-// =====================================================================
-
-/** The public address of the site, without a trailing slash. */
-function site_base_url(): string
-{
-    $configured = trim(setting('site_url'));
-    if ($configured !== '') {
-        return rtrim($configured, '/');
-    }
-
-    // Nothing configured — work it out from the request we are serving.
-    $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
-    if ($host === '') {
-        return '';                       // command line, and no site_url set
-    }
-
-    $https = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off')
-          || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https')
-          || (int)($_SERVER['SERVER_PORT'] ?? 0) === 443;
-
-    return ($https ? 'https://' : 'http://') . $host . BASE_URL;
-}
-
-/** url(), but absolute — for links and images that travel inside an email. */
-function abs_url(string $path = ''): string
-{
-    if (preg_match('#^(https?:|mailto:|tel:|//)#i', $path)) {
-        return $path;
-    }
-
-    $base = site_base_url();
-    if ($base === '') {
-        return url($path);               // best effort: a site-relative link
-    }
-    if ($path === '') {
-        return $base . '/';
-    }
-
-    return $base . '/' . ltrim(clean_path($path), '/');
-}
-
-// =====================================================================
 //  Unsubscribe links
 //
 //  The token is an HMAC of the address rather than a column on the row,

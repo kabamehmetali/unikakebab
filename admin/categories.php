@@ -81,19 +81,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $image = null;
         }
 
+        // Alt text describes the photo, so it goes when the photo does.
+        $imageAlt = mb_substr(trim((string)($_POST['image_alt'] ?? '')), 0, 255);
+        $imageAlt = ($image === null || $imageAlt === '') ? null : $imageAlt;
+
         if ($row) {
             db_run(
                 'UPDATE menu_categories
-                    SET name = ?, slug = ?, description = ?, image = ?, sort_order = ?, is_active = ?
+                    SET name = ?, slug = ?, description = ?, image = ?, image_alt = ?, sort_order = ?, is_active = ?
                   WHERE id = ?',
-                [$name, $slug, ($desc === '' ? null : $desc), $image, $sort, $active, $id]
+                [$name, $slug, ($desc === '' ? null : $desc), $image, $imageAlt, $sort, $active, $id]
             );
             flash('“' . e($name) . '” was updated.', 'success');
         } else {
             db_run(
-                'INSERT INTO menu_categories (name, slug, description, image, sort_order, is_active)
-                 VALUES (?, ?, ?, ?, ?, ?)',
-                [$name, $slug, ($desc === '' ? null : $desc), $image, $sort, $active]
+                'INSERT INTO menu_categories (name, slug, description, image, image_alt, sort_order, is_active)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [$name, $slug, ($desc === '' ? null : $desc), $image, $imageAlt, $sort, $active]
             );
             flash('“' . e($name) . '” was added to the menu.', 'success');
         }
@@ -370,6 +374,12 @@ require __DIR__ . '/includes/header.php';
                     <span>Remove the current photo</span>
                   </label>
                 <?php endif; ?>
+
+                <label class="a-field__label a-field__label--sub" for="image_alt">Alt text</label>
+                <input class="a-input a-input--sm" type="text" id="image_alt" name="image_alt"
+                       maxlength="255" value="<?= e($val('image_alt', '')) ?>"
+                       placeholder="<?= e(trim(($val('name', '') ?: 'This category') . ' at ' . setting('site_name', 'Unika Kebab'))) ?>">
+                <p class="a-field__hint">Describes the photo for screen readers and image search.</p>
               </div>
             </div>
           </div>

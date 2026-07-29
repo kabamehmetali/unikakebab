@@ -129,13 +129,6 @@ $tagline     = setting('site_tagline', 'Charcoal Grill');
 $recaptchaEnabled = recaptcha_is_enabled();
 $recaptchaSiteKey = setting('google_recaptcha_site_key');
 
-// Only offer the starter credentials while they are genuinely still in place:
-// exactly one account, and its password is still "admin123".
-$showDefaultHint = false;
-$accounts        = db_all('SELECT password_hash FROM admins');
-if (count($accounts) === 1 && password_verify('admin123', (string)$accounts[0]['password_hash'])) {
-    $showDefaultHint = true;
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -261,14 +254,6 @@ if (count($accounts) === 1 && password_verify('admin123', (string)$accounts[0]['
         });
       }());
       </script>
-    <?php endif; ?>
-
-    <?php if ($showDefaultHint): ?>
-      <p class="a-login__hint">
-        <i class="fa-solid fa-key" aria-hidden="true"></i>
-        First time here? Sign in with <strong>admin</strong> / <strong>admin123</strong>,
-        then change the password under Account.
-      </p>
     <?php endif; ?>
 
     <a class="a-login__back" href="<?= e(url('index.php')) ?>">

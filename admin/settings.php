@@ -14,13 +14,35 @@ require_admin();
 /** Fields that are stored but never shown in full. */
 const SECRET_KEYS = ['google_maps_api_key', 'google_recaptcha_secret_key', 'twilio_account_sid', 'twilio_auth_token', 'smtp_pass'];
 
-/** The pages that get their own title / description / keywords. */
+/** The pages that get their own meta tags. Must stay in step with seo_pages(). */
 const META_PAGES = [
-    'home'      => ['Home page', 'fa-solid fa-house'],
-    'menu'      => ['Menu page', 'fa-solid fa-burger'],
-    'contact'   => ['Contact page', 'fa-solid fa-envelope'],
-    'locations' => ['Locations page', 'fa-solid fa-location-dot'],
-    'order'     => ['Order online page', 'fa-solid fa-bag-shopping'],
+    'home'        => ['Home page', 'fa-solid fa-house'],
+    'menu'        => ['Menu page', 'fa-solid fa-burger'],
+    'contact'     => ['Contact page', 'fa-solid fa-envelope'],
+    'locations'   => ['Locations page', 'fa-solid fa-location-dot'],
+    'order'       => ['Order online page', 'fa-solid fa-bag-shopping'],
+    'subscribe'   => ['Newsletter sign-up', 'fa-solid fa-envelope-open-text'],
+    'unsubscribe' => ['Unsubscribe page', 'fa-solid fa-envelope-circle-check'],
+];
+
+/**
+ * Site-wide SEO fields, as [key => [label, hint, maxlength, placeholder]].
+ * Everything here applies to every page unless a page overrides it.
+ */
+const SEO_GLOBAL = [
+    'seo_author'      => ['Author', 'Named in the author meta tag and the page structured data.', 120, 'Mehmet Ali KABA'],
+    'seo_publisher'   => ['Publisher', 'The organisation credited as publishing the site.', 120, 'Unika Kebab'],
+    'seo_title_suffix' => ['Title suffix', 'Appended to any page whose title is left blank.', 120, 'Unika Kebab Charcoal Grill'],
+    'seo_locale'      => ['Locale', 'Language and region, underscore separated.', 12, 'en_CA'],
+    'seo_price_range' => ['Price range', 'Shown in Google&rsquo;s local results. One to four dollar signs.', 8, '$$'],
+    'seo_default_robots' => ['Default robots directive', 'Used by any page that does not set its own.', 200,
+                             'index, follow, max-image-preview:large'],
+    'seo_twitter_site'    => ['X / Twitter account', 'The site&rsquo;s handle, including the @.', 40, '@unikakebab'],
+    'seo_twitter_creator' => ['X / Twitter author', 'The author&rsquo;s handle, including the @.', 40, '@unikakebab'],
+    'seo_fb_app_id'       => ['Facebook app ID', 'Optional. Only needed for Facebook Insights.', 40, ''],
+    'seo_google_verification'    => ['Google Search Console', 'The content value from the HTML tag method.', 120, ''],
+    'seo_bing_verification'      => ['Bing Webmaster Tools', 'The content value from the meta tag method.', 120, ''],
+    'seo_pinterest_verification' => ['Pinterest', 'The content value from the p:domain_verify tag.', 120, ''],
 ];
 
 /**
@@ -152,11 +174,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $values['site_name'] = 'Unika Kebab';
     }
 
-    // Per-page SEO meta.
+    // Alt text for the brand images uploaded above.
+    foreach (['logo_alt', 'footer_logo_alt', 'og_image_alt', 'menu_item_placeholder_alt'] as $key) {
+        $values[$key] = mb_substr(trim((string)($_POST[$key] ?? '')), 0, 255);
+    }
+
+    // Site-wide SEO.
+    foreach (SEO_GLOBAL as $key => [, , $max]) {
+        $values[$key] = mb_substr(trim((string)($_POST[$key] ?? '')), 0, $max);
+    }
+    $values['seo_sitemap_enabled'] = empty($_POST['seo_sitemap_enabled']) ? '0' : '1';
+
+    // Per-page SEO meta. Blank Open Graph, canonical and robots fields are
+    // stored as-is: page_meta() treats empty as "fall back to the default",
+    // so clearing a box is how an admin removes an override.
     foreach (array_keys(META_PAGES) as $page) {
         $values["meta_{$page}_title"]    = mb_substr(trim((string)($_POST["meta_{$page}_title"] ?? '')), 0, 200);
         $values["meta_{$page}_desc"]     = mb_substr(trim((string)($_POST["meta_{$page}_desc"] ?? '')), 0, 400);
         $values["meta_{$page}_keywords"] = mb_substr(trim((string)($_POST["meta_{$page}_keywords"] ?? '')), 0, 300);
+        $values["meta_{$page}_og_title"] = mb_substr(trim((string)($_POST["meta_{$page}_og_title"] ?? '')), 0, 200);
+        $values["meta_{$page}_og_desc"]  = mb_substr(trim((string)($_POST["meta_{$page}_og_desc"] ?? '')), 0, 400);
+        $values["meta_{$page}_og_image_alt"] = mb_substr(trim((string)($_POST["meta_{$page}_og_image_alt"] ?? '')), 0, 255);
+        $values["meta_{$page}_canonical"] = mb_substr(trim((string)($_POST["meta_{$page}_canonical"] ?? '')), 0, 255);
+        $values["meta_{$page}_robots"]    = mb_substr(trim((string)($_POST["meta_{$page}_robots"] ?? '')), 0, 200);
     }
 
     // Banner headings on the inner pages.
@@ -187,6 +227,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($uploaded !== null) {
             delete_upload(setting($field, ''));      // drop the file we are replacing
+            $values[$field] = $uploaded;
+        }
+    }
+
+    // Optional per-page share image, overriding the site-wide one.
+    foreach (array_keys(META_PAGES) as $page) {
+        $field = "meta_{$page}_og_image";
+        $error = null;
+
+        if (!empty($_POST["{$field}_clear"])) {
+            delete_upload(setting($field, ''));
+            $values[$field] = '';
+            continue;
+        }
+
+        $uploaded = save_upload($_FILES[$field] ?? [], 'site', "share-{$page}", $error);
+        if ($error !== null) {
+            $uploadErrors[] = (META_PAGES[$page][0] ?? $page) . ' share image: ' . $error;
+            continue;
+        }
+        if ($uploaded !== null) {
+            delete_upload(setting($field, ''));
             $values[$field] = $uploaded;
         }
     }
@@ -290,6 +352,11 @@ require __DIR__ . '/includes/header.php';
               <div class="a-media__body">
                 <input type="file" name="logo" accept="image/*" data-preview="#logoPreview">
                 <p class="a-field__hint">Shown in the navbar and home hero. A transparent PNG works best.</p>
+                <label class="a-field__label a-field__label--sub" for="logo_alt">Alt text</label>
+                <input class="a-input a-input--sm" type="text" id="logo_alt" name="logo_alt"
+                       maxlength="255" value="<?= e(setting('logo_alt')) ?>"
+                       placeholder="Unika Kebab Charcoal Grill logo">
+                <p class="a-field__hint">Read aloud by screen readers wherever the logo appears.</p>
               </div>
             </div>
           </div>
@@ -305,6 +372,11 @@ require __DIR__ . '/includes/header.php';
               <div class="a-media__body">
                 <input type="file" name="footer_logo" accept="image/*" data-preview="#footerLogoPreview">
                 <p class="a-field__hint">Shown only on the dark footer. Use a light or white transparent logo for the best contrast.</p>
+                <label class="a-field__label a-field__label--sub" for="footer_logo_alt">Alt text</label>
+                <input class="a-input a-input--sm" type="text" id="footer_logo_alt" name="footer_logo_alt"
+                       maxlength="255" value="<?= e(setting('footer_logo_alt')) ?>"
+                       placeholder="Unika Kebab Charcoal Grill logo">
+                <p class="a-field__hint">Leave blank to reuse the main logo&rsquo;s alt text.</p>
               </div>
             </div>
           </div>
@@ -331,6 +403,11 @@ require __DIR__ . '/includes/header.php';
               <div class="a-media__body">
                 <input type="file" name="og_image" accept="image/*" data-preview="#ogPreview">
                 <p class="a-field__hint">The picture that appears when someone shares a link on WhatsApp or Facebook.</p>
+                <label class="a-field__label a-field__label--sub" for="og_image_alt">Alt text</label>
+                <input class="a-input a-input--sm" type="text" id="og_image_alt" name="og_image_alt"
+                       maxlength="255" value="<?= e(setting('og_image_alt')) ?>"
+                       placeholder="Charcoal-grilled kebab skewers at Unika Kebab">
+                <p class="a-field__hint">Describes the share image on social platforms.</p>
               </div>
             </div>
           </div>
@@ -395,12 +472,59 @@ require __DIR__ . '/includes/header.php';
     </div>
   </div>
 
-  <!-- ======================= SEO ======================= -->
+  <!-- =================== SEO, site wide =================== -->
+  <div class="a-card" id="seo">
+    <div class="a-card__head">
+      <div>
+        <h2 class="a-card__title"><i class="fa-solid fa-chart-line"></i>SEO &amp; social</h2>
+        <p class="a-card__sub">
+          Applies to every page. The public web address is set under
+          <a href="#site_url">Public website address</a> — canonical links, the sitemap and
+          social previews all depend on it being correct.
+        </p>
+      </div>
+    </div>
+
+    <div class="a-card__body">
+      <div class="row g-4">
+        <?php foreach (SEO_GLOBAL as $key => [$label, $hint, $max, $placeholder]): ?>
+          <div class="col-12 col-lg-6">
+            <div class="a-field">
+              <label class="a-field__label" for="<?= e($key) ?>"><?= $label ?></label>
+              <input class="a-input" type="text" id="<?= e($key) ?>" name="<?= e($key) ?>"
+                     maxlength="<?= (int)$max ?>" value="<?= e(setting($key)) ?>"
+                     <?= $placeholder !== '' ? 'placeholder="' . e($placeholder) . '"' : '' ?>>
+              <p class="a-field__hint"><?= $hint ?></p>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+
+      <div class="a-field">
+        <label class="a-check">
+          <input type="checkbox" name="seo_sitemap_enabled" value="1"
+                 <?= setting('seo_sitemap_enabled', '1') === '1' ? 'checked' : '' ?>>
+          <span>Publish <code>/sitemap.xml</code> and link it from every page</span>
+        </label>
+        <p class="a-field__hint">
+          Turn this off only while the site is still being built.
+          <a href="<?= e(url('sitemap.xml')) ?>" target="_blank" rel="noopener">View the sitemap</a> ·
+          <a href="<?= e(url('robots.txt')) ?>" target="_blank" rel="noopener">View robots.txt</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= SEO, per page ======================= -->
   <div class="a-card">
     <div class="a-card__head">
       <div>
         <h2 class="a-card__title"><i class="fa-solid fa-magnifying-glass"></i>Search engine text</h2>
-        <p class="a-card__sub">What Google shows for each page. Titles work best under 60 characters, descriptions under 160.</p>
+        <p class="a-card__sub">
+          What Google shows for each page. Titles work best under 60 characters, descriptions under 160.
+          The social and advanced boxes are all optional — leave one blank and the page falls back to
+          its title, description and the site-wide defaults.
+        </p>
       </div>
     </div>
 
@@ -429,8 +553,100 @@ require __DIR__ . '/includes/header.php';
                    maxlength="300" value="<?= e(setting("meta_{$page}_keywords")) ?>">
             <p class="a-field__hint">Comma separated. Optional — most search engines ignore this now.</p>
           </div>
+
+          <?php
+            // Everything below is an override. Folded away so the common case
+            // — title and description — stays the thing you see first.
+            $pageOg     = setting("meta_{$page}_og_image");
+            $hasOverride = trim(setting("meta_{$page}_og_title")) !== ''
+                        || trim(setting("meta_{$page}_og_desc")) !== ''
+                        || trim($pageOg) !== ''
+                        || trim(setting("meta_{$page}_canonical")) !== ''
+                        || trim(setting("meta_{$page}_robots")) !== '';
+          ?>
+          <details class="a-details"<?= $hasOverride ? ' open' : '' ?>>
+            <summary class="a-details__summary">
+              <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+              Social preview &amp; advanced
+              <?php if ($hasOverride): ?><span class="a-pill a-pill--gold">overridden</span><?php endif; ?>
+            </summary>
+
+            <div class="a-details__body">
+              <div class="a-field">
+                <label class="a-field__label" for="meta_<?= e($page) ?>_og_title">Social title</label>
+                <input class="a-input" type="text" id="meta_<?= e($page) ?>_og_title" name="meta_<?= e($page) ?>_og_title"
+                       maxlength="200" value="<?= e(setting("meta_{$page}_og_title")) ?>"
+                       placeholder="<?= e(setting("meta_{$page}_title")) ?>">
+                <p class="a-field__hint">Headline when the page is shared. Blank uses the title above.</p>
+              </div>
+
+              <div class="a-field">
+                <label class="a-field__label" for="meta_<?= e($page) ?>_og_desc">Social description</label>
+                <textarea class="a-textarea" id="meta_<?= e($page) ?>_og_desc" name="meta_<?= e($page) ?>_og_desc"
+                          rows="2" maxlength="400"
+                          placeholder="<?= e(setting("meta_{$page}_desc")) ?>"><?= e(setting("meta_{$page}_og_desc")) ?></textarea>
+                <p class="a-field__hint">Blank uses the description above.</p>
+              </div>
+
+              <div class="a-field">
+                <span class="a-field__label">Social share image</span>
+                <div class="a-media">
+                  <img class="a-media__preview" id="ogPreview_<?= e($page) ?>"
+                       src="<?= e(img($pageOg !== '' ? $pageOg : setting('og_image'))) ?>"
+                       alt="" width="104" height="104">
+                  <div class="a-media__body">
+                    <input type="file" name="meta_<?= e($page) ?>_og_image" accept="image/*"
+                           data-preview="#ogPreview_<?= e($page) ?>">
+                    <p class="a-field__hint">
+                      Overrides the site-wide share image for this page. 1200&times;630 works best.
+                      <?php if ($pageOg !== ''): ?>
+                        <label class="a-check a-check--inline">
+                          <input type="checkbox" name="meta_<?= e($page) ?>_og_image_clear" value="1">
+                          <span>Remove and go back to the site-wide image</span>
+                        </label>
+                      <?php endif; ?>
+                    </p>
+                    <label class="a-field__label a-field__label--sub" for="meta_<?= e($page) ?>_og_image_alt">Alt text</label>
+                    <input class="a-input a-input--sm" type="text"
+                           id="meta_<?= e($page) ?>_og_image_alt" name="meta_<?= e($page) ?>_og_image_alt"
+                           maxlength="255" value="<?= e(setting("meta_{$page}_og_image_alt")) ?>"
+                           placeholder="<?= e(setting('og_image_alt')) ?>">
+                  </div>
+                </div>
+              </div>
+
+              <div class="a-field">
+                <label class="a-field__label" for="meta_<?= e($page) ?>_canonical">Canonical URL</label>
+                <input class="a-input" type="text" id="meta_<?= e($page) ?>_canonical" name="meta_<?= e($page) ?>_canonical"
+                       maxlength="255" value="<?= e(setting("meta_{$page}_canonical")) ?>"
+                       placeholder="<?= e(abs_url(seo_pages()[$page]['file'] ?? 'index.php')) ?>">
+                <p class="a-field__hint">
+                  Only set this when the page duplicates another one. Blank is almost always right.
+                </p>
+              </div>
+
+              <div class="a-field">
+                <label class="a-field__label" for="meta_<?= e($page) ?>_robots">Robots directive</label>
+                <input class="a-input" type="text" id="meta_<?= e($page) ?>_robots" name="meta_<?= e($page) ?>_robots"
+                       maxlength="200" value="<?= e(setting("meta_{$page}_robots")) ?>"
+                       placeholder="<?= e(setting('seo_default_robots')) ?>"
+                       list="robotsPresets">
+                <p class="a-field__hint">
+                  <code>noindex, follow</code> keeps a page out of search results but still follows its links.
+                  Blank uses the site-wide default.
+                </p>
+              </div>
+            </div>
+          </details>
         </fieldset>
       <?php endforeach; ?>
+
+      <datalist id="robotsPresets">
+        <option value="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"></option>
+        <option value="index, follow"></option>
+        <option value="noindex, follow"></option>
+        <option value="noindex, nofollow"></option>
+      </datalist>
     </div>
   </div>
 
@@ -551,9 +767,11 @@ require __DIR__ . '/includes/header.php';
             <input class="a-input" type="url" id="site_url" name="site_url" maxlength="255"
                    value="<?= e(setting('site_url')) ?>" placeholder="https://unikakebab.com">
             <p class="a-field__hint">
-              Used for the logo and every link inside an email. Empty works while you are testing locally,
-              but set it before the first real campaign — otherwise the links point at
-              <code><?= e(site_base_url() ?: 'nowhere') ?></code>.
+              Used for every link inside an email, and for the canonical tags, social previews and
+              sitemap on the public site. Empty works while you are testing locally, but set it before
+              you go live — until it is filled in, links point at
+              <code><?= e(site_base_url() ?: 'nowhere') ?></code> and <code>robots.txt</code> tells
+              search engines to stay away.
             </p>
           </div>
         </div>

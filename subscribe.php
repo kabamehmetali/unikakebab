@@ -18,6 +18,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 csrf_require();
 
+// "Register a new email" — drop the remembered sign-up and show the form
+// again. This only forgets the browser; the address stays on the list, so
+// it is deliberately not an unsubscribe.
+if ((string)($_POST['action'] ?? '') === 'forget') {
+    newsletter_forget();
+    redirect($back);
+}
+
 $name   = trim((string)($_POST['name'] ?? ''));
 $email  = trim((string)($_POST['email'] ?? ''));
 $errors = [];
@@ -65,6 +73,11 @@ if ($existing) {
     flash('You are on the list. Watch your inbox for the next special.', 'success');
     $isNew = true;
 }
+
+// Remember the sign-up on this browser either way — somebody who was
+// already subscribed is just as entitled to the "you are on the list"
+// panel as somebody who joined a second ago.
+newsletter_remember($email, $name);
 
 // The welcome email goes out straight away, but it is never allowed to
 // break the sign-up: whoever just joined is on the list either way, and

@@ -39,31 +39,94 @@ INSERT INTO settings (setting_key, setting_value) VALUES
 ('site_name',            'Unika Kebab'),
 ('site_tagline',         'Charcoal Grill'),
 ('logo',                 'assets/img/logo.png'),
+('logo_alt',             'Unika Kebab Charcoal Grill logo'),
 ('footer_logo',          ''),
+('footer_logo_alt',      'Unika Kebab Charcoal Grill logo'),
 ('menu_item_placeholder','assets/img/placeholder.svg'),
+('menu_item_placeholder_alt', 'Unika Kebab menu item photo coming soon'),
 ('favicon',              'assets/img/favicon.png'),
 ('og_image',             'assets/img/logo.png'),
-('store_map_share_url',  ''),
+('og_image_alt',         'Charcoal-grilled kebab skewers at Unika Kebab'),
+('store_map_share_url',  'https://maps.app.goo.gl/VSmRZV8CSL1z6AVN7'),
+
+-- --- SEO, site wide ---------------------------------------------------
+('seo_author',           'Mehmet Ali KABA'),
+('seo_publisher',        'Unika Kebab'),
+('seo_locale',           'en_CA'),
+('seo_title_suffix',     'Unika Kebab Charcoal Grill'),
+('seo_default_robots',   'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'),
+('seo_twitter_site',     ''),
+('seo_twitter_creator',  ''),
+('seo_fb_app_id',        ''),
+('seo_google_verification',    ''),
+('seo_bing_verification',      ''),
+('seo_pinterest_verification', ''),
+('seo_price_range',      '$$'),
+('seo_sitemap_enabled',  '1'),
 
 -- --- SEO meta, per page ----------------------------------------------
+-- Blank og_* / canonical / robots values fall back to the page title,
+-- description, the canonical URL and seo_default_robots respectively.
 ('meta_home_title',      'Unika Kebab | Charcoal Grill — Authentic Turkish Kebab'),
 ('meta_home_desc',       'Skewers grilled over real charcoal. Adana, beef kofte, shish tavuk and shawarma wrapped fresh daily at Unika Kebab.'),
 ('meta_home_keywords',   'kebab, charcoal grill, adana, shawarma, turkish food, halal'),
+('meta_home_og_title',   ''),
+('meta_home_og_desc',    ''),
+('meta_home_og_image',   ''),
+('meta_home_canonical',  ''),
+('meta_home_robots',     ''),
 ('meta_menu_title',      'Menu | Unika Kebab Charcoal Grill'),
 ('meta_menu_desc',       'Sandwiches, platters, sides and desserts — see the full Unika Kebab charcoal grill menu and prices.'),
 ('meta_menu_keywords',   'kebab menu, adana kebab, shawarma, falafel, baklava'),
+('meta_menu_og_title',   ''),
+('meta_menu_og_desc',    ''),
+('meta_menu_og_image',   ''),
+('meta_menu_canonical',  ''),
+('meta_menu_robots',     ''),
 ('meta_contact_title',   'Contact Us | Unika Kebab Charcoal Grill'),
 ('meta_contact_desc',    'Questions, catering or large orders? Send the Unika Kebab team a message and we will get right back to you.'),
 ('meta_contact_keywords','contact unika kebab, catering, phone number'),
+('meta_contact_og_title',  ''),
+('meta_contact_og_desc',   ''),
+('meta_contact_og_image',  ''),
+('meta_contact_canonical', ''),
+('meta_contact_robots',    ''),
 ('meta_locations_title', 'Locations | Unika Kebab Charcoal Grill'),
 ('meta_locations_desc',  'Find Unika Kebab — address, opening hours, parking and directions to our charcoal grill.'),
 ('meta_locations_keywords','unika kebab location, directions, opening hours'),
+('meta_locations_og_title',  ''),
+('meta_locations_og_desc',   ''),
+('meta_locations_og_image',  ''),
+('meta_locations_canonical', ''),
+('meta_locations_robots',    ''),
 ('meta_order_title',     'Order Online | Unika Kebab Charcoal Grill'),
 ('meta_order_desc',      'Order Unika Kebab for pickup or delivery through your favourite app, or call the grill directly.'),
 ('meta_order_keywords',  'order kebab online, delivery, pickup'),
+('meta_order_og_title',   ''),
+('meta_order_og_desc',    ''),
+('meta_order_og_image',   ''),
+('meta_order_canonical',  ''),
+('meta_order_robots',     ''),
+('meta_subscribe_title',    'Newsletter | Unika Kebab Charcoal Grill'),
+('meta_subscribe_desc',     'Confirm your subscription to the Unika Kebab list — specials, new skewers and seasonal plates, once a month.'),
+('meta_subscribe_keywords', ''),
+('meta_subscribe_og_title', ''),
+('meta_subscribe_og_desc',  ''),
+('meta_subscribe_og_image', ''),
+('meta_subscribe_canonical',''),
+('meta_subscribe_robots',   'noindex, follow'),
+('meta_unsubscribe_title',    'Unsubscribe | Unika Kebab Charcoal Grill'),
+('meta_unsubscribe_desc',     'Manage your Unika Kebab email preferences or unsubscribe from the newsletter.'),
+('meta_unsubscribe_keywords', ''),
+('meta_unsubscribe_og_title', ''),
+('meta_unsubscribe_og_desc',  ''),
+('meta_unsubscribe_og_image', ''),
+('meta_unsubscribe_canonical',''),
+('meta_unsubscribe_robots',   'noindex, nofollow'),
 
 -- --- home: hero -------------------------------------------------------
 ('hero_image',           'assets/img/hero-home.jpg'),
+('hero_image_alt',       'Kebab skewers grilling over glowing charcoal at Unika Kebab'),
 ('hero_eyebrow',         'Grilled over real charcoal'),
 ('hero_title',           'Skewers with a story'),
 ('hero_title_accent',    'story'),
@@ -79,6 +142,7 @@ INSERT INTO settings (setting_key, setting_value) VALUES
 ('home_about_title',     'Fire, smoke and a little patience'),
 ('home_about_text',      'Everything at Unika starts on the charcoal. We shape the kofte by hand each morning, marinate the chicken overnight and grill each skewer to order over glowing coals — never a flat-top, never a microwave. The bread is warmed on the same grill so it picks up the smoke, then filled with crisp pickles, parsley, tomato and our house taratur.'),
 ('home_about_image',     'assets/img/bg-parchment.jpg'),
+('home_about_image_alt', 'Chef hand-shaping kofte in the Unika Kebab kitchen'),
 ('home_about_btn_text',  'See what we grill'),
 ('home_about_btn_link',  'menu.php'),
 
@@ -95,8 +159,8 @@ INSERT INTO settings (setting_key, setting_value) VALUES
 
 -- --- home: call to action band ---------------------------------------
 ('home_cta_eyebrow',     'Hungry now?'),
-('home_cta_title',       'Your kebab is twelve minutes away'),
-('home_cta_text',        'Order ahead for pickup or have it delivered — the grill fires as soon as your order lands.'),
+('home_cta_title',       'Order with confidence'),
+('home_cta_text',        'Choose delivery or pickup, and enjoy charcoal-grilled kebab prepared to order.'),
 ('home_cta_btn_text',    'Start an order'),
 ('home_cta_btn_link',    'order.php'),
 
@@ -120,7 +184,7 @@ INSERT INTO settings (setting_key, setting_value) VALUES
 ('locations_hero_text',  'One kitchen, one grill, one address. Come say hi.'),
 ('order_hero_eyebrow',   'Pickup & delivery'),
 ('order_hero_title',     'Order online'),
-('order_hero_text',      'Pick your platform below, or call the shop and we will have it ready.'),
+('order_hero_text',      'Choose your preferred ordering option below, or call the restaurant for assistance.'),
 
 -- --- footer -----------------------------------------------------------
 ('footer_about',         'Charcoal-grilled kebab, shawarma and mezze made fresh every day. Family run, generously portioned, always halal.'),
@@ -158,6 +222,7 @@ CREATE TABLE store (
   directions_note TEXT NULL,
   parking_note  TEXT NULL,
   photo         VARCHAR(255) NULL,
+  photo_alt     VARCHAR(255) NULL,
   facebook      VARCHAR(255) NULL,
   instagram     VARCHAR(255) NULL,
   twitter       VARCHAR(255) NULL,
@@ -214,10 +279,10 @@ CREATE TABLE order_links (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO order_links (label, url, icon, note, sort_order, is_active) VALUES
-('Uber Eats',       'https://www.ubereats.com/',      'fa-solid fa-car-side',   'Delivery in 25–40 min',     1, 1),
+('Uber Eats',       'https://www.ubereats.com/',      'fa-solid fa-car-side',   'Delivery & pickup',         1, 1),
 ('DoorDash',        'https://www.doordash.com/',      'fa-solid fa-box-open',   'Delivery & pickup',         2, 1),
-('SkipTheDishes',   'https://www.skipthedishes.com/', 'fa-solid fa-bicycle',    'Local delivery',            3, 1),
-('Call for pickup', 'tel:+14165550184',               'fa-solid fa-phone-flip', 'Ready in about 12 minutes', 4, 1);
+('SkipTheDishes',   'https://www.skipthedishes.com/', 'fa-solid fa-bicycle',    'Delivery & pickup',         3, 1),
+('Call for pickup', 'tel:+14165550184',               'fa-solid fa-phone-flip', 'Pickup',                    4, 1);
 
 -- ---------------------------------------------------------------------
 -- Home page "why us" cards
@@ -235,7 +300,7 @@ INSERT INTO home_features (icon, title, text, sort_order) VALUES
 ('fa-solid fa-fire-flame-curved', 'Real charcoal, no shortcuts', 'Every skewer is grilled to order over glowing coals — that char is the whole point.', 1),
 ('fa-solid fa-wheat-awn',         'Made fresh each morning',     'Kofte shaped by hand, chicken marinated overnight, salads chopped the same day.', 2),
 ('fa-solid fa-certificate',       'Halal and generous',          'Fully halal meat and portions built for an appetite, not for a photograph.', 3),
-('fa-solid fa-stopwatch',         'Twelve minutes to pickup',    'Order ahead and your bag is on the counter, still warm, when you walk in.', 4);
+('fa-solid fa-stopwatch',         'Convenient pickup',           'Order ahead and collect your freshly prepared meal at the counter.', 4);
 
 -- ---------------------------------------------------------------------
 -- Menu
@@ -246,6 +311,7 @@ CREATE TABLE menu_categories (
   slug        VARCHAR(140) NOT NULL UNIQUE,
   description TEXT NULL,
   image       VARCHAR(255) NULL,
+  image_alt   VARCHAR(255) NULL,
   sort_order  INT NOT NULL DEFAULT 0,
   is_active   TINYINT(1) NOT NULL DEFAULT 1,
   created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -267,6 +333,7 @@ CREATE TABLE menu_items (
   price       DECIMAL(8,2) NULL,
   price_note  VARCHAR(40) NULL,
   image       VARCHAR(255) NULL,
+  image_alt   VARCHAR(255) NULL,
   badge       VARCHAR(40) NULL,
   is_vegetarian TINYINT(1) NOT NULL DEFAULT 0,
   is_spicy      TINYINT(1) NOT NULL DEFAULT 0,
@@ -464,7 +531,7 @@ INSERT IGNORE INTO email_templates (id, name, subject, preheader, kind, is_locke
 <hr>
 <h3>While you are here</h3>
 <ul>
-  <li><strong>Order ahead</strong> — pickup is about twelve minutes. <a href="{{order_url}}">Start an order</a>.</li>
+  <li><strong>Order ahead</strong> — choose delivery or pickup. <a href="{{order_url}}">Start an order</a>.</li>
   <li><strong>Come say hi</strong> — {{address}}.</li>
   <li><strong>Big order or catering?</strong> Call {{phone}} and we will sort it out.</li>
 </ul>

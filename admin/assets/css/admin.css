@@ -530,9 +530,63 @@ body.a-dragging { cursor: grabbing; user-select: none; }
 .a-input-group .a-input { border-radius: var(--a-radius-sm) 0 0 var(--a-radius-sm); }
 .a-input-group .a-btn { border-radius: 0 var(--a-radius-sm) var(--a-radius-sm) 0; }
 
+/* A secondary label, for an alt-text box sitting under its upload field. */
+.a-field__label--sub {
+  margin-top: 0.7rem;
+  font-size: 0.76rem;
+  color: var(--a-muted);
+}
+.a-input--sm { padding: 0.45rem 0.6rem; font-size: 0.87rem; }
+
 /* checkbox / switch */
 .a-check { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.92rem; }
 .a-check input { width: 18px; height: 18px; accent-color: var(--a-gold-deep); cursor: pointer; }
+.a-check--inline { margin-top: 0.4rem; font-size: 0.8rem; color: var(--a-muted); }
+.a-check--inline input { width: 15px; height: 15px; }
+
+/* Folded-away overrides — the advanced half of the per-page SEO editor. */
+.a-details {
+  margin-top: 0.35rem;
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius-sm);
+  background: #fbfaf8;
+}
+.a-details__summary {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--a-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.a-details__summary::-webkit-details-marker { display: none; }
+.a-details__summary::after {
+  content: "\f078";                     /* chevron-down */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  margin-left: auto;
+  font-size: 0.7rem;
+  transition: transform 0.25s var(--a-ease);
+}
+.a-details[open] > .a-details__summary { color: var(--a-ink); border-bottom: 1px solid var(--a-line); }
+.a-details[open] > .a-details__summary::after { transform: rotate(180deg); }
+.a-details__summary:hover { color: var(--a-ink); }
+.a-details__body { padding: 0.9rem; }
+.a-details__body .a-field:last-child { margin-bottom: 0; }
+
+.a-pill {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.a-pill--gold { background: rgba(244, 176, 7, 0.18); color: var(--a-gold-deep); }
 
 .a-switch { display: inline-flex; align-items: center; gap: 0.65rem; cursor: pointer; font-size: 0.92rem; }
 .a-switch input { position: absolute; opacity: 0; pointer-events: none; }

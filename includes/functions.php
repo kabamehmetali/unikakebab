@@ -59,6 +59,51 @@ function admin_url(string $path = ''): string
 }
 
 /**
+ * The public address of the site, without a trailing slash.
+ *
+ * Needed anywhere a site-relative link will not do: links inside an email
+ * have to work from somebody else's inbox, and canonical / og: / JSON-LD
+ * tags are all rejected by search engines unless they are fully qualified.
+ */
+function site_base_url(): string
+{
+    $configured = trim(setting('site_url'));
+    if ($configured !== '') {
+        return rtrim($configured, '/');
+    }
+
+    // Nothing configured — work it out from the request we are serving.
+    $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '') {
+        return '';                       // command line, and no site_url set
+    }
+
+    $https = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off')
+          || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https')
+          || (int)($_SERVER['SERVER_PORT'] ?? 0) === 443;
+
+    return ($https ? 'https://' : 'http://') . $host . BASE_URL;
+}
+
+/** url(), but absolute. */
+function abs_url(string $path = ''): string
+{
+    if (preg_match('#^(https?:|mailto:|tel:|//)#i', $path)) {
+        return $path;
+    }
+
+    $base = site_base_url();
+    if ($base === '') {
+        return url($path);               // best effort: a site-relative link
+    }
+    if ($path === '') {
+        return $base . '/';
+    }
+
+    return $base . '/' . ltrim(clean_path($path), '/');
+}
+
+/**
  * URL for an uploaded or bundled image, with a fallback when the value is empty
  * or the file has gone missing.
  */
@@ -122,6 +167,25 @@ function excerpt(?string $text, int $length = 120): string
     return mb_substr($text, 0, $length) . '…';
 }
 
+/** Build a readable, labelled SMS notification for a contact-form message. */
+function contact_sms_body(string $sender, string $email, string $phone, string $subject, string $message): string
+{
+    $singleLine = static function (string $value, string $fallback): string {
+        $value = preg_replace('/\s+/', ' ', trim($value)) ?? '';
+        return $value !== '' ? $value : $fallback;
+    };
+
+    $body = excerpt($message, 300);
+
+    return "Unika Kebab — New contact message\n"
+         . 'Sender: ' . $singleLine($sender, 'Not provided') . "\n"
+         . 'Email: ' . $singleLine($email, 'Not provided') . "\n"
+         . 'Phone: ' . $singleLine($phone, 'Not provided') . "\n"
+         . 'Subject: ' . $singleLine($subject, 'Not provided') . "\n"
+         . "Message:\n"
+         . ($body !== '' ? $body : 'Not provided');
+}
+
 /** A tel: href built from a human-readable phone number. */
 function phone_href(?string $phone): string
 {
@@ -167,14 +231,284 @@ function setting_set_many(array $pairs): void
     }
 }
 
-/** Meta title / description / keywords for a page key such as "home" or "menu". */
-function page_meta(string $page): array
+// =====================================================================
+//  SEO
+// =====================================================================
+
+/**
+ * Every public page, in the order they should appear in the sitemap and in
+ * the admin SEO editor. Keyed by the $pageKey a page hands to the header.
+ *
+ *   file      the script the page lives in
+ *   label     what the admin panel calls it
+ *   priority  sitemap <priority>
+ *   changefreq sitemap <changefreq>
+ *   public    include in sitemap.xml / robots.txt at all
+ */
+function seo_pages(): array
 {
     return [
-        'title'    => setting("meta_{$page}_title", setting('site_name', 'Unika Kebab')),
-        'desc'     => setting("meta_{$page}_desc", ''),
-        'keywords' => setting("meta_{$page}_keywords", ''),
+        'home' => [
+            'file' => 'index.php', 'label' => 'Home',
+            'priority' => '1.0', 'changefreq' => 'weekly', 'public' => true,
+        ],
+        'menu' => [
+            'file' => 'menu.php', 'label' => 'Menu',
+            'priority' => '0.9', 'changefreq' => 'weekly', 'public' => true,
+        ],
+        'locations' => [
+            'file' => 'locations.php', 'label' => 'Locations',
+            'priority' => '0.8', 'changefreq' => 'monthly', 'public' => true,
+        ],
+        'order' => [
+            'file' => 'order.php', 'label' => 'Order Online',
+            'priority' => '0.8', 'changefreq' => 'monthly', 'public' => true,
+        ],
+        'contact' => [
+            'file' => 'contact.php', 'label' => 'Contact Us',
+            'priority' => '0.7', 'changefreq' => 'monthly', 'public' => true,
+        ],
+        'subscribe' => [
+            'file' => 'subscribe.php', 'label' => 'Newsletter (subscribe)',
+            'priority' => '0.1', 'changefreq' => 'yearly', 'public' => false,
+        ],
+        'unsubscribe' => [
+            'file' => 'unsubscribe.php', 'label' => 'Newsletter (unsubscribe)',
+            'priority' => '0.1', 'changefreq' => 'yearly', 'public' => false,
+        ],
     ];
+}
+
+/**
+ * Scheme and host with no path — "https://unikakebab.ca".
+ *
+ * site_base_url() (includes/mailer.php) already resolves the public address
+ * from the site_url setting, falling back to the host serving the request;
+ * this trims the sub-folder back off for the places that want a bare origin.
+ */
+function site_origin(): string
+{
+    $base = site_base_url();
+    if ($base === '') {
+        return '';
+    }
+    return preg_replace('#^(https?://[^/]+).*$#i', '$1', $base) ?: $base;
+}
+
+/**
+ * Absolute URL for an image, for og:image and JSON-LD — both of which reject
+ * relative paths. img() has already resolved the fallback and prefixed
+ * BASE_URL, so only the scheme and host are still missing.
+ */
+function abs_media(?string $path, string $fallback = 'assets/img/logo.png'): string
+{
+    $src = img($path, $fallback);
+
+    if (preg_match('#^https?://#i', $src)) {
+        return $src;
+    }
+    if (strpos($src, '//') === 0) {
+        return (parse_url(site_origin(), PHP_URL_SCHEME) ?: 'https') . ':' . $src;
+    }
+
+    $origin = site_origin();
+    return $origin === '' ? $src : $origin . $src;
+}
+
+/**
+ * The complete meta set for a page key such as "home" or "menu".
+ *
+ * Open Graph and canonical values are optional in the admin panel — a blank
+ * og_title falls back to the page title, a blank canonical to the page's own
+ * URL, and blank robots to the site-wide default. That way an admin only has
+ * to fill in the fields they actually want to override.
+ */
+function page_meta(string $page): array
+{
+    $pages    = seo_pages();
+    $file     = $pages[$page]['file'] ?? 'index.php';
+    $siteName = setting('site_name', 'Unika Kebab');
+    $suffix   = setting('seo_title_suffix', '');
+
+    $title = setting("meta_{$page}_title", '');
+    if ($title === '') {
+        $label = $pages[$page]['label'] ?? $siteName;
+        $title = ($page === 'home' || $suffix === '') ? $siteName : $label . ' | ' . $suffix;
+    }
+
+    $desc      = setting("meta_{$page}_desc", '');
+    $canonical = trim(setting("meta_{$page}_canonical", ''));
+    $ogImage   = trim(setting("meta_{$page}_og_image", ''));
+
+    return [
+        'key'          => $page,
+        'title'        => $title,
+        'desc'         => $desc,
+        'keywords'     => setting("meta_{$page}_keywords", ''),
+        'robots'       => setting("meta_{$page}_robots", '') ?: setting('seo_default_robots', 'index, follow'),
+        'canonical'    => $canonical !== '' ? abs_url($canonical) : abs_url($file),
+        'og_title'     => setting("meta_{$page}_og_title", '') ?: $title,
+        'og_desc'      => setting("meta_{$page}_og_desc", '') ?: $desc,
+        'og_image'     => abs_media($ogImage !== '' ? $ogImage : setting('og_image', 'assets/img/logo.png')),
+        'og_image_alt' => setting("meta_{$page}_og_image_alt", '') ?: setting('og_image_alt', $siteName),
+    ];
+}
+
+/**
+ * Pick the alt text for an image: the admin's own wording when they supplied
+ * it, otherwise a generated description. Decorative images should pass an
+ * empty $fallback and get alt="" plus aria-hidden, not a made-up sentence.
+ */
+function alt_text(?string $alt, string $fallback = ''): string
+{
+    $alt = trim((string)$alt);
+    return $alt !== '' ? $alt : $fallback;
+}
+
+/** Alt text for a menu item photo, falling back to "<name> — <category> at <site>". */
+function menu_item_alt(array $item, string $categoryName = ''): string
+{
+    $siteName = setting('site_name', 'Unika Kebab');
+    $parts    = array_filter([$item['name'] ?? '', $categoryName]);
+    $fallback = implode(' — ', $parts);
+
+    return alt_text($item['image_alt'] ?? null, trim($fallback . ' at ' . $siteName, ' —'));
+}
+
+/** Two-letter country code for the store, for schema.org and geo meta tags. */
+function store_country_code(): string
+{
+    $country = strtolower(trim((string)(store()['country'] ?? '')));
+    $known   = [
+        'canada' => 'CA', 'united states' => 'US', 'usa' => 'US',
+        'united kingdom' => 'GB', 'uk' => 'GB', 'turkey' => 'TR', 'türkiye' => 'TR',
+    ];
+
+    if (isset($known[$country])) {
+        return $known[$country];
+    }
+    // Already a code, or nothing usable — default to Canada.
+    return (strlen($country) === 2) ? strtoupper($country) : 'CA';
+}
+
+/** Opening hours in the openingHoursSpecification shape schema.org expects. */
+function seo_opening_hours(): array
+{
+    $days = day_names();
+    $out  = [];
+
+    foreach (store_hours() as $index => $row) {
+        if (!empty($row['is_closed']) || empty($row['open_time']) || empty($row['close_time'])) {
+            continue;
+        }
+        $out[] = [
+            '@type'     => 'OpeningHoursSpecification',
+            'dayOfWeek' => 'https://schema.org/' . ($days[$index] ?? 'Monday'),
+            'opens'     => substr((string)$row['open_time'], 0, 5),
+            'closes'    => substr((string)$row['close_time'], 0, 5),
+        ];
+    }
+
+    return $out;
+}
+
+/**
+ * The JSON-LD graph for a page: the restaurant itself, the website, the page
+ * being viewed and — when the page supplies them — a breadcrumb trail.
+ *
+ * Every node is @id-linked so search engines read them as one entity rather
+ * than four unrelated blobs, which is what makes rich results fire.
+ *
+ * $breadcrumbs is a list of ['name' => …, 'url' => …] in trail order.
+ */
+function seo_structured_data(string $pageKey, array $meta, array $breadcrumbs = []): array
+{
+    $s        = store();
+    $siteName = setting('site_name', 'Unika Kebab');
+    $home     = abs_url();
+    $orgId    = $home . '#restaurant';
+    $siteId   = $home . '#website';
+
+    $restaurant = array_filter([
+        '@type'         => 'Restaurant',
+        '@id'           => $orgId,
+        'name'          => $s['name'] ?? $siteName,
+        'alternateName' => setting('site_tagline', ''),
+        'url'           => $home,
+        'logo'          => abs_media(setting('logo', 'assets/img/logo.png')),
+        'image'         => abs_media(setting('og_image', setting('logo', 'assets/img/logo.png'))),
+        'description'   => setting('footer_about', $meta['desc']),
+        'servesCuisine' => ['Turkish', 'Middle Eastern', 'Kebab', 'Halal'],
+        'priceRange'    => setting('seo_price_range', '$$'),
+        'telephone'     => $s['phone'] ?? '',
+        'email'         => $s['email'] ?? '',
+        'hasMenu'       => abs_url('menu.php'),
+        'acceptsReservations' => 'False',
+        'address'       => array_filter([
+            '@type'           => 'PostalAddress',
+            'streetAddress'   => trim(($s['address_line1'] ?? '') . ' ' . ($s['address_line2'] ?? '')),
+            'addressLocality' => $s['city'] ?? '',
+            'addressRegion'   => $s['province'] ?? '',
+            'postalCode'      => $s['postal_code'] ?? '',
+            'addressCountry'  => store_country_code(),
+        ]),
+        'geo' => (!empty($s['latitude']) && !empty($s['longitude'])) ? [
+            '@type'     => 'GeoCoordinates',
+            'latitude'  => (float)$s['latitude'],
+            'longitude' => (float)$s['longitude'],
+        ] : null,
+        'openingHoursSpecification' => seo_opening_hours(),
+        'sameAs' => array_values(array_map(
+            static fn(array $social): string => $social['url'],
+            store_socials()
+        )),
+    ], static fn($value): bool => $value !== null && $value !== '' && $value !== []);
+
+    $graph = [
+        $restaurant,
+        [
+            '@type'     => 'WebSite',
+            '@id'       => $siteId,
+            'url'       => $home,
+            'name'      => $siteName,
+            'publisher' => ['@id' => $orgId],
+            'inLanguage' => str_replace('_', '-', setting('seo_locale', 'en_CA')),
+        ],
+        array_filter([
+            '@type'      => 'WebPage',
+            '@id'        => $meta['canonical'] . '#webpage',
+            'url'        => $meta['canonical'],
+            'name'       => $meta['title'],
+            'description'=> $meta['desc'],
+            'isPartOf'   => ['@id' => $siteId],
+            'about'      => ['@id' => $orgId],
+            'primaryImageOfPage' => ['@type' => 'ImageObject', 'url' => $meta['og_image']],
+            'author'     => [
+                '@type' => 'Person',
+                'name'  => setting('seo_author', 'Mehmet Ali KABA'),
+            ],
+            'inLanguage' => str_replace('_', '-', setting('seo_locale', 'en_CA')),
+        ]),
+    ];
+
+    if ($breadcrumbs) {
+        $graph[] = [
+            '@type'           => 'BreadcrumbList',
+            '@id'             => $meta['canonical'] . '#breadcrumb',
+            'itemListElement' => array_map(
+                static fn(int $i, array $crumb): array => [
+                    '@type'    => 'ListItem',
+                    'position' => $i + 1,
+                    'name'     => $crumb['name'],
+                    'item'     => abs_url($crumb['url']),
+                ],
+                array_keys($breadcrumbs),
+                $breadcrumbs
+            ),
+        ];
+    }
+
+    return ['@context' => 'https://schema.org', '@graph' => $graph];
 }
 
 // =====================================================================
@@ -410,6 +744,126 @@ function home_features(bool $activeOnly = true): array
 {
     $where = $activeOnly ? 'WHERE is_active = 1' : '';
     return db_all("SELECT * FROM home_features $where ORDER BY sort_order, id");
+}
+
+// =====================================================================
+//  Newsletter sign-up memory
+//
+//  A successful sign-up is remembered in a cookie so somebody coming back
+//  to the site sees "you are on the list" instead of an empty form they
+//  have already filled in once, with a button to swap in another address.
+//
+//  The cookie is signed. Not because the state is sensitive — it decides
+//  which of two panels to draw — but because the value is echoed back on
+//  the page and checked against the subscribers table. Signing it means an
+//  address has to be one we put there ourselves, so nobody can hand-craft
+//  a cookie to either plant text on the page or probe whether some other
+//  address is on the list.
+//
+//  It is only ever a hint. The list itself lives in the database, which is
+//  what newsletter_state() actually trusts.
+// =====================================================================
+
+/** Cookie holding the remembered sign-up. */
+const NEWSLETTER_COOKIE = 'unika_newsletter';
+
+/** How long a remembered sign-up survives, in seconds. */
+const NEWSLETTER_COOKIE_TTL = 31536000;      // one year
+
+/** Shared cookie flags, so setting and clearing always agree. */
+function newsletter_cookie_options(int $expires): array
+{
+    return [
+        'expires'  => $expires,
+        'path'     => (BASE_URL === '' ? '/' : BASE_URL . '/'),
+        'httponly' => true,                  // only ever read by PHP
+        'samesite' => 'Lax',
+        'secure'   => !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off',
+    ];
+}
+
+/** Remember that this browser signed up with $email. */
+function newsletter_remember(string $email, string $name = ''): void
+{
+    $payload = json_encode(
+        ['e' => $email, 'n' => $name, 't' => time()],
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+    );
+    $value = base64_encode($payload) . '.' . hash_hmac('sha256', $payload, app_secret());
+
+    setcookie(NEWSLETTER_COOKIE, $value, newsletter_cookie_options(time() + NEWSLETTER_COOKIE_TTL));
+    $_COOKIE[NEWSLETTER_COOKIE] = $value;    // visible to the rest of this request too
+}
+
+/** Forget the remembered sign-up, so the form comes back. */
+function newsletter_forget(): void
+{
+    if (!headers_sent()) {
+        setcookie(NEWSLETTER_COOKIE, '', newsletter_cookie_options(time() - 3600));
+    }
+    unset($_COOKIE[NEWSLETTER_COOKIE]);
+}
+
+/** The address in the cookie, or null when there is none we signed. */
+function newsletter_remembered(): ?array
+{
+    $raw = (string)($_COOKIE[NEWSLETTER_COOKIE] ?? '');
+    if ($raw === '' || substr_count($raw, '.') !== 1) {
+        return null;
+    }
+
+    [$encoded, $signature] = explode('.', $raw, 2);
+    $payload = base64_decode($encoded, true);
+    if ($payload === false
+        || !hash_equals(hash_hmac('sha256', $payload, app_secret()), $signature)) {
+        return null;
+    }
+
+    $data  = json_decode($payload, true);
+    $email = is_array($data) ? trim((string)($data['e'] ?? '')) : '';
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return null;
+    }
+
+    return ['email' => $email, 'name' => trim((string)($data['n'] ?? ''))];
+}
+
+/**
+ * The confirmed sign-up for this browser, or null when there is not one.
+ *
+ * The cookie only says what this browser did; the table says what is true
+ * now. Somebody who has since unsubscribed — from another device, or with
+ * the one-click link in an email — gets the form back rather than a panel
+ * telling them they are subscribed when they are not.
+ */
+function newsletter_state(): ?array
+{
+    static $state = false;                   // false = not looked up yet
+
+    if ($state !== false) {
+        return $state;
+    }
+
+    $state      = null;
+    $remembered = newsletter_remembered();
+
+    if ($remembered !== null) {
+        $row = db_one(
+            'SELECT name, is_active FROM subscribers WHERE email = ?',
+            [$remembered['email']]
+        );
+
+        if ($row && (int)$row['is_active'] === 1) {
+            $state = [
+                'email' => $remembered['email'],
+                'name'  => trim((string)($row['name'] ?? '')) ?: $remembered['name'],
+            ];
+        } else {
+            newsletter_forget();             // gone from the list, so drop the cookie
+        }
+    }
+
+    return $state;
 }
 
 // =====================================================================

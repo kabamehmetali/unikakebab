@@ -4,6 +4,9 @@ require __DIR__ . '/includes/app.php';
 $store   = store();
 $links   = order_links();
 $address = store_address();
+$mapUrl  = store_map_share_url(
+    'https://www.google.com/maps/search/?api=1&query=' . rawurlencode(trim(($store['name'] ?? '') . ' ' . $address))
+);
 [$openNow, $openText] = store_open_status();
 
 $phone     = trim((string)($store['phone'] ?? ''));
@@ -25,12 +28,16 @@ $steps = [
     ],
     [
         'icon'  => 'fa-solid fa-bag-shopping',
-        'title' => 'Collect in about 12 minutes',
-        'text'  => 'Walk in, give your name at the counter and take the bag — wrapped, sauced on the side and still hot. Extra pickles and taratur are on the counter.',
+        'title' => 'Collect at your convenience',
+        'text'  => 'When you arrive, provide the name on your order and collect your freshly prepared meal from the counter. Condiments are available on request.',
     ],
 ];
 
 $pageKey = 'order';
+$breadcrumbs = [
+    ['name' => 'Home', 'url' => 'index.php'],
+    ['name' => 'Order Online', 'url' => 'order.php'],
+];
 $hero = [
     'eyebrow' => setting('order_hero_eyebrow', 'Pickup & delivery'),
     'title'   => setting('order_hero_title', 'Order online'),
@@ -50,8 +57,8 @@ require __DIR__ . '/includes/hero.php';
       <span class="eyebrow">Choose your platform</span>
       <h2 class="section-title">Where would you like to order?</h2>
       <p class="section-text">
-        Delivery through our partners, or pickup straight from the counter. Prices and portions are
-        the same wherever you order — pickup is simply the fastest way to eat it while it is still hot.
+        Choose delivery through one of our trusted partners or pickup directly from the restaurant.
+        Each option gives you access to the same freshly prepared menu.
       </p>
       <img class="ornament" src="<?= e(url('assets/img/ornament.png')) ?>" alt="" aria-hidden="true" width="720" height="124">
     </div>
@@ -64,12 +71,13 @@ require __DIR__ . '/includes/hero.php';
             <a class="order-card" href="<?= e(url($link['url'])) ?>"
                <?= $external ? 'target="_blank" rel="noopener"' : '' ?>>
               <span class="order-card__icon">
-                <i class="<?= e($link['icon']) ?>" aria-hidden="true"></i>
+                <?= order_link_icon($link) ?>
               </span>
               <span>
                 <span class="order-card__title d-block"><?= e($link['label']) ?></span>
-                <?php if (!empty($link['note'])): ?>
-                  <span class="order-card__note d-block"><?= e($link['note']) ?></span>
+                <?php $orderNote = order_link_note($link); ?>
+                <?php if ($orderNote !== ''): ?>
+                  <span class="order-card__note d-block"><?= e($orderNote) ?></span>
                 <?php endif; ?>
               </span>
               <span class="order-card__go">
@@ -83,8 +91,8 @@ require __DIR__ . '/includes/hero.php';
       <div class="menu-empty" data-reveal>
         <i class="fa-solid fa-phone-flip fa-2x text-gold" aria-hidden="true"></i>
         <p class="mt-3 mb-4">
-          Our online ordering partners are being set up. Until they are live, the quickest way to
-          eat is to call the shop — we will have your skewers wrapped and waiting at the counter.
+          Online ordering is currently being updated. In the meantime, please call the restaurant
+          to arrange pickup.
         </p>
         <?php if ($phone !== ''): ?>
           <a class="btn-u btn-gold" href="<?= e(phone_href($phone)) ?>">
@@ -115,11 +123,11 @@ require __DIR__ . '/includes/hero.php';
         <h2 class="cta-band__title">Talk to the grill directly</h2>
         <p class="cta-band__text">
           <?php if ($phone !== ''): ?>
-            Big orders, allergies or a tray for the office — pick up the phone and we will sort it
-            out in a minute. We answer between the skewers, so give it a couple of rings.
+            For catering, dietary requirements, or larger orders, call us directly. Our team will
+            be pleased to help.
           <?php else: ?>
-            Big orders, allergies or a tray for the office — send us a message and we will confirm
-            the timing before we start cooking.
+            For catering, dietary requirements, or larger orders, send us a message and we will
+            confirm the details before we begin preparing your order.
           <?php endif; ?>
         </p>
 
@@ -128,10 +136,10 @@ require __DIR__ . '/includes/hero.php';
             <span class="status-chip__dot" aria-hidden="true"></span><?= e($openText) ?>
           </span>
           <?php if ($address !== ''): ?>
-            <span class="cta-band__text">
+            <a class="cta-band__text cta-band__address" href="<?= e($mapUrl) ?>" target="_blank" rel="noopener">
               <i class="fa-solid fa-location-dot text-gold" aria-hidden="true"></i>
               Pickup at <?= e($address) ?>
-            </span>
+            </a>
           <?php endif; ?>
         </div>
       </div>
@@ -162,10 +170,10 @@ require __DIR__ . '/includes/hero.php';
 
     <div class="section-head text-center" data-reveal>
       <span class="eyebrow">How pickup works</span>
-      <h2 class="section-title">Three steps, twelve minutes</h2>
+      <h2 class="section-title">Pickup made simple</h2>
       <p class="section-text">
-        No apps to learn and no waiting around at <?= e($shopName) ?> — here is exactly what happens
-        between your order and your first bite.
+        Ordering ahead makes collection straightforward at <?= e($shopName) ?>. Here is what to expect
+        from confirmation to pickup.
       </p>
       <img class="ornament" src="<?= e(url('assets/img/ornament.png')) ?>" alt="" aria-hidden="true" width="720" height="124">
     </div>

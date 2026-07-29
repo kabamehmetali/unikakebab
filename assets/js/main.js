@@ -9,6 +9,7 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     stickyNav();
+    mobileNav();
     revealOnScroll();
     backToTop();
     menuCategoryNav();
@@ -47,7 +48,9 @@
 
       var name = row.getAttribute('data-dish-name') || '';
       elImage.src = row.getAttribute('data-dish-image') || '';
-      elImage.alt = name;
+      // Prefer the alt the admin wrote for this photo; the dish name is only
+      // a last resort, and describes the dish rather than the picture.
+      elImage.alt = row.getAttribute('data-dish-alt') || name;
 
       elTitle.textContent = name;
       elCat.textContent = row.getAttribute('data-dish-category') || '';
@@ -184,6 +187,84 @@
     };
     apply();
     window.addEventListener('scroll', apply, { passive: true });
+  }
+
+  /* --- full-screen mobile menu -------------------------------------- */
+  function mobileNav() {
+    var bar    = document.querySelector('.u-nav');
+    var toggle = document.getElementById('navToggle');
+    var panel  = document.getElementById('mainNav');
+    var order  = document.getElementById('orderMenu');
+    if (!bar || !toggle || !panel) return;
+
+    var DESKTOP = '(min-width: 992px)';
+    var isDesktop = function () { return window.matchMedia(DESKTOP).matches; };
+
+    /* The panel starts below the sticky bar, and that bar shrinks once the
+       page scrolls — so publish its live height instead of hard-coding it. */
+    var measure = function () {
+      document.documentElement.style.setProperty('--nav-h-real', bar.offsetHeight + 'px');
+    };
+
+    var open = function () {
+      panel.classList.add('is-open');
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', 'Close menu');
+      document.body.classList.add('nav-open');
+    };
+
+    var close = function () {
+      panel.classList.remove('is-open');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Open menu');
+      document.body.classList.remove('nav-open');
+    };
+
+    var isOpen = function () { return panel.classList.contains('is-open'); };
+
+    toggle.addEventListener('click', function () {
+      measure();
+      isOpen() ? close() : open();
+    });
+
+    /* Any link inside the panel navigates, so drop the overlay with it —
+       otherwise it lingers over same-page anchors and back-navigations. */
+    panel.addEventListener('click', function (ev) {
+      if (ev.target.closest('a[href]')) close();
+    });
+
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && isOpen()) {
+        close();
+        toggle.focus();
+      }
+    });
+
+    /* Inside the panel the ordering links are already laid out as a list, so
+       Bootstrap's dropdown would only swallow the tap on "Order Online".
+       Bootstrap delegates off the attribute, so removing it is enough. */
+    var syncOrderDropdown = function () {
+      if (!order) return;
+      if (isDesktop()) {
+        order.setAttribute('data-bs-toggle', 'dropdown');
+      } else {
+        var instance = window.bootstrap && window.bootstrap.Dropdown.getInstance(order);
+        if (instance) instance.dispose();
+        order.removeAttribute('data-bs-toggle');
+        order.removeAttribute('aria-expanded');
+      }
+    };
+
+    window.addEventListener('resize', function () {
+      measure();
+      syncOrderDropdown();
+      if (isDesktop() && isOpen()) close();
+    });
+
+    window.addEventListener('pageshow', close);
+
+    measure();
+    syncOrderDropdown();
   }
 
   /* --- fade sections in as they enter the viewport ------------------ */

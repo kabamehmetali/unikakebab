@@ -194,6 +194,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = $uploadError;
     }
 
+    // Alt text describes the photo, so it goes when the photo does.
+    $photoAlt = mb_substr(trim((string)($_POST['photo_alt'] ?? '')), 0, 255);
+
     $photo = $currentPhoto;
     if ($newPhoto !== null) {
         $photo = $newPhoto;
@@ -221,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         db_run(
             'UPDATE store SET
-                name = ?, tagline = ?, photo = ?,
+                name = ?, tagline = ?, photo = ?, photo_alt = ?,
                 email = ?, phone = ?, whatsapp = ?,
                 address_line1 = ?, address_line2 = ?, city = ?, province = ?, postal_code = ?, country = ?,
                 latitude = ?, longitude = ?, map_zoom = ?,
@@ -229,7 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 directions_note = ?, parking_note = ?
              WHERE id = 1',
             [
-                $name, $orNull($tagline), $orNull($photo),
+                $name, $orNull($tagline), $orNull($photo), ($photo === '' ? null : $orNull($photoAlt)),
                 $orNull($email), $orNull($phone), $orNull($whatsapp),
                 $orNull($line1), $orNull($line2), $orNull($city), $orNull($prov), $orNull($postal), $orNull($country),
                 $lat, $lng, $zoom,
@@ -396,6 +399,15 @@ require __DIR__ . '/includes/header.php';
             <?php else: ?>
               <p class="a-small a-muted a-mb0">No photo uploaded yet.</p>
             <?php endif; ?>
+
+            <label class="a-field__label a-field__label--sub" for="f_photo_alt">Alt text</label>
+            <input class="a-input a-input--sm" type="text" id="f_photo_alt" name="photo_alt"
+                   maxlength="255" value="<?= e($store['photo_alt'] ?? '') ?>"
+                   placeholder="<?= e(trim((string)($store['name'] ?? 'Unika Kebab')) . ' shopfront on ' . (string)($store['address_line1'] ?? '')) ?>">
+            <p class="a-field__hint">
+              Shown on the locations page for screen readers and image search. Describe what the
+              picture actually shows.
+            </p>
           </div>
         </div>
       </div>

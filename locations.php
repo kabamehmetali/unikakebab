@@ -65,6 +65,10 @@ if (trim((string)($store['parking_note'] ?? '')) !== '') {
 }
 
 $pageKey = 'locations';
+$breadcrumbs = [
+    ['name' => 'Home', 'url' => 'index.php'],
+    ['name' => 'Locations', 'url' => 'locations.php'],
+];
 $hero = [
     'eyebrow' => setting('locations_hero_eyebrow', 'Find us'),
     'title'   => setting('locations_hero_title', 'Our location'),
@@ -104,11 +108,12 @@ require __DIR__ . '/includes/hero.php';
           </span>
 
           <?php if ($addressLines): ?>
-            <p class="info-card__value mt-3 mb-0">
+            <a class="info-card__value info-card__address-link mt-3 mb-0" href="<?= e($directions) ?>"
+               target="_blank" rel="noopener" aria-label="Open <?= e($shopName) ?> in Google Maps">
               <?php foreach ($addressLines as $i => $line): ?>
                 <?= e($line) ?><?= $i < count($addressLines) - 1 ? '<br>' : '' ?>
               <?php endforeach; ?>
-            </p>
+            </a>
           <?php else: ?>
             <p class="info-card__note mt-3 mb-0">
               We are finalising the street address for this location. Give us a call and we will
@@ -228,7 +233,8 @@ require __DIR__ . '/includes/hero.php';
         <?php if (!empty($store['photo'])): ?>
           <div class="media-frame media-frame--wide mt-4" data-reveal>
             <img src="<?= e(img($store['photo'])) ?>"
-                 alt="<?= e(trim($shopName . ' ' . $shopTagline)) ?> shopfront" loading="lazy">
+                 alt="<?= e(alt_text($store['photo_alt'] ?? null, trim($shopName . ' ' . $shopTagline) . ' shopfront')) ?>"
+                 loading="lazy" decoding="async">
             <span class="media-frame__outline" aria-hidden="true"></span>
           </div>
         <?php endif; ?>

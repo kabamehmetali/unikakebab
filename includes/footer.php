@@ -21,7 +21,8 @@ $mapsUrl   = store_map_share_url('https://www.google.com/maps/search/?api=1&quer
       <div class="col-lg-4 col-md-6">
         <img class="u-foot__logo"
              src="<?= e(img($footerLogo, setting('logo', 'assets/img/logo.png'))) ?>"
-             alt="<?= e($siteName) ?>">
+             alt="<?= e(alt_text(setting('footer_logo_alt', setting('logo_alt')), $siteName)) ?>"
+             loading="lazy" decoding="async">
         <p class="u-foot__about"><?= e(setting('footer_about')) ?></p>
 
         <?php if ($socials): ?>
@@ -56,11 +57,12 @@ $mapsUrl   = store_map_share_url('https://www.google.com/maps/search/?api=1&quer
             <li>
               <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
               <span>
-                <strong><?= e($s['address_line1'] ?? '') ?></strong>
-                <?= e(trim(($s['city'] ?? '') . ', ' . ($s['province'] ?? '') . ' ' . ($s['postal_code'] ?? ''), ' ,')) ?>
-                <br>
-                <a href="<?= e($mapsUrl) ?>"
-                   target="_blank" rel="noopener">Get directions</a>
+                <a class="u-foot__address" href="<?= e($mapsUrl) ?>" target="_blank" rel="noopener">
+                  <strong><?= e($s['address_line1'] ?? '') ?></strong>
+                  <?= e(trim(($s['city'] ?? '') . ', ' . ($s['province'] ?? '') . ' ' . ($s['postal_code'] ?? ''), ' ,')) ?>
+                  <br>
+                  Get directions
+                </a>
               </span>
             </li>
           <?php endif; ?>
@@ -110,7 +112,7 @@ $mapsUrl   = store_map_share_url('https://www.google.com/maps/search/?api=1&quer
           <span class="u-foot__credit">
             Designed by
             <a href="https://creativetorontonian.ca" target="_blank" rel="noopener noreferrer">
-              Creative Torontonian <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+              Creative Torontonian
             </a>
           </span>
         </div>

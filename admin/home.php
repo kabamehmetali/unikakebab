@@ -44,6 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'home_cta_btn_text', 'home_cta_btn_link',
             // newsletter band
             'newsletter_eyebrow', 'newsletter_title', 'newsletter_text', 'newsletter_btn_text',
+            // alt text for the two photos below — saved whether or not a new
+            // file was picked, so the wording can be fixed on its own
+            'hero_image_alt', 'home_about_image_alt',
         ];
 
         $pairs = [];
@@ -254,6 +257,15 @@ require __DIR__ . '/includes/header.php';
             <input type="file" id="f_hero_image" name="hero_image" accept="image/*" data-preview="#heroPreview">
             <p class="a-field__hint">Wide and dark works best — at least 1600&nbsp;px across. JPG, PNG or WebP, up to 8&nbsp;MB. Leave it empty to keep the photo you already have.</p>
             <p class="a-small a-muted a-mb0">In use: <?= e(setting('hero_image', 'assets/img/hero-home.jpg')) ?></p>
+            <label class="a-field__label a-field__label--sub" for="f_hero_image_alt">Alt text</label>
+            <input class="a-input a-input--sm" type="text" id="f_hero_image_alt" name="hero_image_alt"
+                   maxlength="255" value="<?= e(setting('hero_image_alt')) ?>"
+                   placeholder="Kebab skewers grilling over glowing charcoal at Unika Kebab">
+            <p class="a-field__hint">
+              The hero is a CSS background, so it has no alt attribute of its own — fill this in and
+              the banner is announced to screen readers, leave it blank and it is treated as
+              decoration. Blank is the right answer unless the photo carries real meaning.
+            </p>
           </div>
         </div>
       </div>
@@ -330,6 +342,11 @@ require __DIR__ . '/includes/header.php';
             <input type="file" id="f_home_about_image" name="home_about_image" accept="image/*" data-preview="#aboutPreview">
             <p class="a-field__hint">An upright shot of the grill, the counter or the team. Anything from 1000&nbsp;px wide is plenty.</p>
             <p class="a-small a-muted a-mb0">In use: <?= e(setting('home_about_image', 'assets/img/bg-parchment.jpg')) ?></p>
+            <label class="a-field__label a-field__label--sub" for="f_home_about_image_alt">Alt text</label>
+            <input class="a-input a-input--sm" type="text" id="f_home_about_image_alt" name="home_about_image_alt"
+                   maxlength="255" value="<?= e(setting('home_about_image_alt')) ?>"
+                   placeholder="Chef hand-shaping kofte in the Unika Kebab kitchen">
+            <p class="a-field__hint">Describes the story photo for screen readers and image search.</p>
           </div>
         </div>
       </div>
@@ -535,7 +552,7 @@ require __DIR__ . '/includes/header.php';
           <label class="a-field__label" for="f_card_text">Text</label>
           <textarea class="a-textarea" id="f_card_text" name="text"
                     placeholder="Every skewer is grilled to order over glowing coals — that char is the whole point."><?= e($fText) ?></textarea>
-          <p class="a-field__hint">One sentence. Say something concrete: the coals, the morning prep, the twelve-minute pickup.</p>
+          <p class="a-field__hint">One sentence. Be specific about charcoal grilling, fresh preparation, or convenient pickup.</p>
         </div>
 
         <div class="a-grid-2">
@@ -581,7 +598,7 @@ require __DIR__ . '/includes/header.php';
     <div class="a-grid-2">
       <?php
       home_field_text('home_cta_eyebrow', 'Small line above the title', 'Hungry now?', '', true);
-      home_field_text('home_cta_title', 'Title', 'Your kebab is twelve minutes away', '', true);
+      home_field_text('home_cta_title', 'Title', 'Order with confidence', '', true);
       ?>
     </div>
 
