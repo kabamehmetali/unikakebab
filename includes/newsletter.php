@@ -6,18 +6,29 @@
  * Somebody who has already signed up on this browser gets a confirmation
  * panel instead of the form — see newsletter_state() in includes/functions.php
  * — with a button that forgets them so another address can be entered.
+ *
+ * The result of a sign-up is printed here, inside the band, rather than in the
+ * page's flash area: the visitor is looking at this section — that is where the
+ * redirect drops them — so an answer at the top of the page would be missed.
  */
-$nlErrors = $_SESSION['nl_errors'] ?? [];
-unset($_SESSION['nl_errors']);
+$nlNotices = nl_notices_take();
+$nlFailed  = false;
+foreach ($nlNotices as $notice) {
+    if ($notice['type'] === 'error') {
+        $nlFailed = true;
+    }
+}
 
 $nlState  = newsletter_state();
 $nlReturn = basename($_SERVER['SCRIPT_NAME'] ?? 'index.php', '.php');
 
 // Somebody halfway through fixing a rejected address must not be bounced
 // back to the confirmation panel before they have finished.
-if ($nlErrors) {
+if ($nlFailed) {
     $nlState = null;
 }
+
+$nlIcons = ['success' => 'fa-circle-check', 'error' => 'fa-circle-exclamation', 'info' => 'fa-circle-info'];
 ?>
 <div class="newsletter" id="newsletter" data-reveal>
   <div class="row align-items-center g-4">
@@ -37,6 +48,15 @@ if ($nlErrors) {
     </div>
 
     <div class="col-lg-7">
+
+      <?php foreach ($nlNotices as $notice): ?>
+        <?php $nlType = isset($nlIcons[$notice['type']]) ? $notice['type'] : 'info'; ?>
+        <div class="alert-note alert-note--<?= e($nlType) ?>" role="<?= $nlType === 'error' ? 'alert' : 'status' ?>">
+          <i class="fa-solid <?= e($nlIcons[$nlType]) ?>" aria-hidden="true"></i>
+          <span><?= e($notice['message']) ?></span>
+        </div>
+      <?php endforeach; ?>
+
       <?php if ($nlState): ?>
 
         <!-- ============ already signed up on this browser ============ -->
@@ -77,20 +97,19 @@ if ($nlErrors) {
       <?php else: ?>
 
         <!-- ===================== sign-up form ===================== -->
-        <?php foreach ($nlErrors as $error): ?>
-          <div class="alert-note alert-note--error" role="alert">
-            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
-            <span><?= e($error) ?></span>
-          </div>
-        <?php endforeach; ?>
-
         <form class="newsletter__form" action="<?= e(url('subscribe.php')) ?>" method="post" data-guard>
           <?= csrf_field() ?>
           <input type="hidden" name="return_to" value="<?= e($nlReturn) ?>">
 
-          <div class="hp-field" aria-hidden="true">
-            <label for="nl-website">Leave this empty</label>
-            <input type="text" id="nl-website" name="website" tabindex="-1" autocomplete="off">
+          <?php /* Bot trap. It is readonly and off-screen so no browser, password
+                   manager or autofill can put anything in it — only a script can,
+                   which is the whole point. The inline styles keep it hidden even
+                   if the stylesheet has not arrived yet. */ ?>
+          <div class="hp-field" aria-hidden="true"
+               style="position:absolute;left:-5000px;width:1px;height:0;overflow:hidden">
+            <label for="nl-hp">Leave this field empty</label>
+            <input type="text" id="nl-hp" name="nl_hp" value=""
+                   tabindex="-1" autocomplete="off" readonly>
           </div>
 
           <label class="visually-hidden" for="nl-name">Your name</label>

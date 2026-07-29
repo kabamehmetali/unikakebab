@@ -829,6 +829,27 @@ function newsletter_remembered(): ?array
 }
 
 /**
+ * Feedback from a sign-up attempt, carried across the redirect.
+ *
+ * Kept apart from flash(): the sign-up band sits halfway down the home page,
+ * so anything it has to say belongs inside the band the visitor is looking at
+ * rather than in the hero at the top, which they have already scrolled past.
+ */
+function nl_notice(string $message, string $type = 'success'): void
+{
+    $_SESSION['nl_notices'][] = ['message' => $message, 'type' => $type];
+}
+
+/** Read and clear the queued sign-up feedback. */
+function nl_notices_take(): array
+{
+    $notices = $_SESSION['nl_notices'] ?? [];
+    unset($_SESSION['nl_notices']);
+
+    return is_array($notices) ? $notices : [];
+}
+
+/**
  * The confirmed sign-up for this browser, or null when there is not one.
  *
  * The cookie only says what this browser did; the table says what is true

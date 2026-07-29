@@ -1526,6 +1526,25 @@ body.has-modal { overflow: hidden; }
 }
 .newsletter__note { font-size: 0.82rem; color: rgba(255, 248, 236, 0.5); margin: 0.9rem 0 0; }
 
+/* The sign-up result is printed inside the band, so the page-wide alert
+   colours — dark ink on a pale wash — have to be re-cut for a dark panel. */
+.newsletter .alert-note { margin-bottom: 1rem; }
+.newsletter .alert-note--success {
+  background: rgba(126, 204, 137, 0.12);
+  border-color: rgba(126, 204, 137, 0.42);
+  color: #a8e3b2;
+}
+.newsletter .alert-note--error {
+  background: rgba(255, 122, 82, 0.12);
+  border-color: rgba(255, 122, 82, 0.45);
+  color: #ffb59b;
+}
+.newsletter .alert-note--info {
+  background: rgba(244, 176, 7, 0.12);
+  border-color: rgba(244, 176, 7, 0.42);
+  color: #f6c750;
+}
+
 /* Confirmation panel, shown in place of the form once this browser has
    signed up. Same dark band, so it reads as the form settling rather than
    a different component appearing. */
@@ -1592,6 +1611,141 @@ body.has-modal { overflow: hidden; }
   60%  { transform: scale(1.12); }
   100% { opacity: 1; transform: scale(1); }
 }
+
+/* ---------------------------------------------------------------------
+   12b. Unsubscribe
+   One card, three states — asking, done, broken link — told apart by the
+   colour of the mark at the top rather than by three different layouts.
+   --------------------------------------------------------------------- */
+.unsub {
+  --unsub-accent: var(--gold);
+  --unsub-accent-soft: rgba(244, 176, 7, 0.14);
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: clamp(2rem, 5vw, 3.25rem) clamp(1.4rem, 4vw, 3rem) clamp(1.6rem, 4vw, 2.5rem);
+  box-shadow: var(--shadow);
+}
+.unsub::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, transparent, var(--unsub-accent), transparent);
+}
+.unsub--done    { --unsub-accent: #2f7a3e; --unsub-accent-soft: rgba(47, 122, 62, 0.12); }
+.unsub--invalid { --unsub-accent: var(--ember); --unsub-accent-soft: rgba(195, 54, 1, 0.1); }
+
+.unsub__mark {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  margin: 0 auto 1.4rem;
+  border-radius: 50%;
+  background: var(--unsub-accent-soft);
+  border: 1px solid var(--unsub-accent);
+  color: var(--unsub-accent);
+  font-size: 1.6rem;
+  animation: nl-check-pop 0.5s var(--ease) both;
+}
+.unsub--done .unsub__mark {
+  background: #2f7a3e;
+  border-color: #2f7a3e;
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(47, 122, 62, 0.28);
+}
+
+.unsub__title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 1.02;
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  margin: 0 0 0.9rem;
+}
+.unsub__lead {
+  color: var(--muted);
+  font-size: 1.04rem;
+  max-width: 52ch;
+  margin: 0 auto;
+}
+.unsub__lead + .unsub__lead { margin-top: 0.9rem; }
+
+/* The address itself, set apart so nobody unsubscribes the wrong one. */
+.unsub__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 100%;
+  margin: 1.4rem 0 0.4rem;
+  padding: 0.7rem 1.25rem;
+  border-radius: var(--radius-pill);
+  background: var(--cream-2);
+  border: 1px solid var(--line);
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.unsub__chip i { color: var(--unsub-accent); font-size: 0.85rem; flex: 0 0 auto; }
+
+/* One decision, stacked deliberately: the button that acts sits above the one
+   that backs out, at the same width, at every screen size. */
+.unsub .hero__actions {
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1.6rem;
+}
+.unsub .hero__actions .btn-u { min-width: min(20rem, 100%); }
+
+/* Three short promises under the button — the things people want to know
+   before they press it, and the reason they press it instead of "spam". */
+.unsub__facts {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+  list-style: none;
+  margin: 1.9rem 0 0;
+  padding: 1.5rem 0 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+@media (min-width: 700px) {
+  .unsub__facts { grid-template-columns: repeat(3, 1fr); gap: 1.1rem; }
+}
+.unsub__fact {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.unsub__fact i {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--gold-soft);
+  color: var(--gold-deep);
+  font-size: 0.72rem;
+}
+.unsub__fact strong { display: block; color: var(--ink); font-weight: 600; }
+
+.unsub__note {
+  margin: 1.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.unsub__note i { color: var(--gold-deep); margin-right: 0.4rem; }
 
 /* ---------------------------------------------------------------------
    13. CTA band

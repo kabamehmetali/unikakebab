@@ -13,10 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     csrf_require();
 
-    // Bots fill in every field they can find, including the hidden one.
-    // Give them a success page and quietly bin the submission.
-    if (trim((string)($_POST['website'] ?? '')) !== '') {
-        flash('Thanks — your message is with the kitchen. We will be in touch soon.', 'success');
+    // Bots fill in every field they can find, including the hidden one. A
+    // person cannot reach it, so anything in it was put there by a script.
+    // The submission is binned — but never with a thank-you, because a real
+    // sender must never be told a message was sent that nobody will read.
+    if (trim((string)($_POST['ct_hp'] ?? '')) !== '') {
+        old_set($_POST);
+        $_SESSION['contact_errors'] = ['We could not process that message. Please try again.'];
         redirect($backTo);
     }
 
@@ -230,9 +233,15 @@ require __DIR__ . '/includes/hero.php';
           <form action="<?= e(url('contact.php')) ?>" method="post" id="contact-message-form" data-guard novalidate>
             <?= csrf_field() ?>
 
-            <div class="hp-field" aria-hidden="true">
-              <label for="ct-website">Leave this empty</label>
-              <input type="text" id="ct-website" name="website" tabindex="-1" autocomplete="off">
+            <?php /* Bot trap. Readonly and off-screen, so no browser, password
+                     manager or autofill can reach it — only a script can, which
+                     is the whole point. The inline styles keep it hidden even if
+                     the stylesheet has not arrived yet. */ ?>
+            <div class="hp-field" aria-hidden="true"
+                 style="position:absolute;left:-5000px;width:1px;height:0;overflow:hidden">
+              <label for="ct-hp">Leave this field empty</label>
+              <input type="text" id="ct-hp" name="ct_hp" value=""
+                     tabindex="-1" autocomplete="off" readonly>
             </div>
 
             <div class="row">

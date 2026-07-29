@@ -57,6 +57,21 @@ const HERO_PAGES = [
 ];
 
 /**
+ * Photos the welcome email's banner can open on — the same heroes the public
+ * pages use. An empty value means "whatever the home page hero is set to",
+ * which is why it is first: change the photo on the home page and the email
+ * follows it without anybody having to remember this box exists.
+ */
+const EMAIL_HERO_IMAGES = [
+    ''                            => 'Home page hero (follows the Home settings)',
+    'assets/img/hero-home.jpg'    => 'Home banner photo',
+    'assets/img/hero-menu.jpg'    => 'Menu banner photo',
+    'assets/img/hero-contact.jpg' => 'Contact banner photo',
+    'assets/img/bg-stone.jpg'     => 'Locations banner photo',
+    'assets/img/bg-parchment.jpg' => 'Parchment texture',
+];
+
+/**
  * Decide what to store for a secret field.
  * An empty box, or the mask itself coming back unchanged, means "keep what we have".
  */
@@ -168,7 +183,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'email_batch_size'      => (string)max(1, min(200, (int)($_POST['email_batch_size'] ?? 20))),
         'email_enabled'         => empty($_POST['email_enabled']) ? '0' : '1',
         'welcome_email_enabled' => empty($_POST['welcome_email_enabled']) ? '0' : '1',
+
+        // --- welcome email banner ------------------------------------
+        'email_hero_eyebrow'    => mb_substr(trim((string)($_POST['email_hero_eyebrow'] ?? '')), 0, 120),
+        'email_hero_title'      => mb_substr(trim((string)($_POST['email_hero_title'] ?? '')), 0, 150),
+        'email_hero_text'       => mb_substr(trim((string)($_POST['email_hero_text'] ?? '')), 0, 255),
     ];
+
+    // Only one of the site's own hero photos, never an address typed in by hand:
+    // a broken image in an inbox is not something anybody can fix from there.
+    $heroChoice = (string)($_POST['email_hero_image'] ?? '');
+    $values['email_hero_image'] = isset(EMAIL_HERO_IMAGES[$heroChoice]) ? $heroChoice : '';
 
     if ($values['site_name'] === '') {
         $values['site_name'] = 'Unika Kebab';
@@ -784,6 +809,55 @@ require __DIR__ . '/includes/header.php';
             Sits above the unsubscribe button in every email. Saying why they are hearing from you
             is what stops people reaching for the spam button.
           </p>
+        </div>
+      </fieldset>
+
+      <fieldset class="a-fieldset">
+        <legend class="a-fieldset__legend"><i class="fa-solid fa-image"></i> Welcome banner</legend>
+
+        <p class="a-field__hint">
+          The welcome email opens on one of the website's hero photos, with the wording below over it.
+          <a href="<?= e(admin_url('templates.php')) ?>">Preview it</a> after saving.
+        </p>
+
+        <div class="a-grid-2">
+          <div class="a-field">
+            <label class="a-field__label" for="email_hero_image">Photo</label>
+            <select class="a-select" id="email_hero_image" name="email_hero_image">
+              <?php foreach (EMAIL_HERO_IMAGES as $path => $label): ?>
+                <option value="<?= e($path) ?>" <?= setting('email_hero_image') === $path ? 'selected' : '' ?>>
+                  <?= e($label) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+            <p class="a-field__hint">
+              The same pictures your pages open on. “Home page hero” follows whatever photo is set under
+              <a href="<?= e(admin_url('home.php')) ?>">Home</a>.
+            </p>
+          </div>
+
+          <div class="a-field">
+            <label class="a-field__label" for="email_hero_eyebrow">Small line above</label>
+            <input class="a-input" type="text" id="email_hero_eyebrow" name="email_hero_eyebrow" maxlength="120"
+                   value="<?= e(setting('email_hero_eyebrow')) ?>" placeholder="The Unika list">
+            <p class="a-field__hint">Leave any of these empty to use the wording in the placeholder.</p>
+          </div>
+        </div>
+
+        <div class="a-field">
+          <label class="a-field__label" for="email_hero_title">Headline</label>
+          <input class="a-input" type="text" id="email_hero_title" name="email_hero_title" maxlength="150"
+                 value="<?= e(setting('email_hero_title')) ?>" placeholder="You are on the list">
+          <p class="a-field__hint">
+            <code>{{first_name}}</code> works here too, so the banner can greet by name.
+          </p>
+        </div>
+
+        <div class="a-field">
+          <label class="a-field__label" for="email_hero_text">Line underneath</label>
+          <input class="a-input" type="text" id="email_hero_text" name="email_hero_text" maxlength="255"
+                 value="<?= e(setting('email_hero_text')) ?>"
+                 placeholder="One short email a month, straight off the charcoal.">
         </div>
       </fieldset>
 

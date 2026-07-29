@@ -44,7 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         header('Content-Type: text/html; charset=utf-8');
         header('X-Robots-Tag: noindex');
-        $composed = email_compose(PREVIEW_PERSON, $in['subject'], $in['body_html'], $in['preheader']);
+        // The welcome email opens on the photo banner, so its preview has to
+        // as well — otherwise the editor is judging a shell nobody receives.
+        $isWelcome = !empty($_POST['is_welcome']) || ($row && (string)$row['kind'] === 'welcome');
+
+        $composed = email_compose(PREVIEW_PERSON, $in['subject'], $in['body_html'], $in['preheader'], ['hero' => $isWelcome]);
         exit($composed['html']);
     }
 
@@ -202,7 +206,13 @@ if ($previewId > 0) {
 
     header('Content-Type: text/html; charset=utf-8');
     header('X-Robots-Tag: noindex');
-    $composed = email_compose(PREVIEW_PERSON, (string)$row['subject'], (string)$row['body_html'], (string)($row['preheader'] ?? ''));
+    $composed = email_compose(
+        PREVIEW_PERSON,
+        (string)$row['subject'],
+        (string)$row['body_html'],
+        (string)($row['preheader'] ?? ''),
+        ['hero' => (string)$row['kind'] === 'welcome']
+    );
     exit($composed['html']);
 }
 

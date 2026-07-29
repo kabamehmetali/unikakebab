@@ -65,6 +65,10 @@ $showDone    = $removed || ($linkValid && !$stillListed);
 
 $pageKey = 'unsubscribe';
 $noIndex = true;
+// The banner follows the state of the page. Only the question needs wording an
+// admin might want to soften, so that is the one taken from Settings — a
+// banner still saying "confirm below" over a finished unsubscribe reads as a
+// page that has not noticed what just happened.
 $hero = [
     'eyebrow'  => setting('unsubscribe_hero_eyebrow', 'Mailing list'),
     'title'    => setting('unsubscribe_hero_title', 'Leaving the list'),
@@ -74,6 +78,16 @@ $hero = [
     'compact'  => true,
     'ornament' => false,
 ];
+
+if ($showDone) {
+    $hero['eyebrow'] = 'Mailing list';
+    $hero['title']   = 'Off the list';
+    $hero['text']    = 'Nothing more to do — the details are below.';
+} elseif (!$linkValid) {
+    $hero['eyebrow'] = 'Mailing list';
+    $hero['title']   = 'Unsubscribe';
+    $hero['text']    = 'We could not read that link, so nothing has been changed.';
+}
 require __DIR__ . '/includes/header.php';
 require __DIR__ . '/includes/hero.php';
 ?>
@@ -85,28 +99,22 @@ require __DIR__ . '/includes/hero.php';
 
         <?php if ($showDone): ?>
           <!-- ===================== done ===================== -->
-          <div class="form-card text-center" data-reveal>
+          <div class="unsub unsub--done" data-reveal>
+            <span class="unsub__mark" aria-hidden="true"><i class="fa-solid fa-check"></i></span>
+
             <span class="eyebrow">All done</span>
-            <h2 class="section-title">You are off the list</h2>
-            <p class="section-text">
-              <?php if ($wasThere): ?>
-                <strong><?= e($email) ?></strong> has been deleted from our mailing list.
-                We keep no copy of it, so this is the last email you will get from us.
-              <?php else: ?>
-                <strong><?= e($email) ?></strong> was not on our list, so there is nothing left to remove.
-                Either way, you will not hear from us again.
-              <?php endif; ?>
+            <h2 class="unsub__title">You are off the list</h2>
+
+            <p class="unsub__lead">
+              <?= $wasThere
+                  ? 'Deleted from our mailing list — not hidden, not paused. This was the last email you will get from us.'
+                  : 'That address was not on our list, so there was nothing left to remove. Either way, you will not hear from us again.' ?>
             </p>
 
-            <div class="alert-note alert-note--success" role="status">
-              <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-              <span>Address deleted. Nothing further to do.</span>
-            </div>
-
-            <p class="section-text">
-              Changed your mind, or unsubscribed by accident? You can join again any time —
-              the sign-up sits at the bottom of the home page.
-            </p>
+            <span class="unsub__chip">
+              <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+              <?= e($email) ?>
+            </span>
 
             <div class="hero__actions">
               <a class="btn-u btn-gold" href="<?= e(url('index.php')) ?>#newsletter">
@@ -116,17 +124,31 @@ require __DIR__ . '/includes/hero.php';
                 <i class="fa-solid fa-utensils" aria-hidden="true"></i> Back to the menu
               </a>
             </div>
+
+            <p class="unsub__note">
+              <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+              Unsubscribed by accident? Joining again takes one line on the home page —
+              nothing was kept, so you start fresh.
+            </p>
           </div>
 
         <?php elseif ($linkValid): ?>
           <!-- ===================== confirm ===================== -->
-          <div class="form-card text-center" data-reveal>
+          <div class="unsub" data-reveal>
+            <span class="unsub__mark" aria-hidden="true"><i class="fa-solid fa-envelope-open-text"></i></span>
+
             <span class="eyebrow">One last check</span>
-            <h2 class="section-title">Unsubscribe <?= e($email) ?>?</h2>
-            <p class="section-text">
-              Press the button and we delete this address from our records — not hidden,
-              not paused, deleted. Any newsletter still going out stops for you immediately.
+            <h2 class="unsub__title">Ready to unsubscribe?</h2>
+
+            <p class="unsub__lead">
+              Press the button and this address comes off straight away. Anything still
+              going out stops for you immediately.
             </p>
+
+            <span class="unsub__chip">
+              <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+              <?= e($email) ?>
+            </span>
 
             <form method="post" action="<?= e(url('unsubscribe.php')) ?>" data-guard>
               <input type="hidden" name="e" value="<?= e($email) ?>">
@@ -143,27 +165,39 @@ require __DIR__ . '/includes/hero.php';
               </div>
             </form>
 
-            <p class="newsletter__note">
-              <i class="fa-solid fa-lock" aria-hidden="true"></i>
-              We never sell or share the list. One email a month is all we ever send.
-            </p>
+            <ul class="unsub__facts">
+              <li class="unsub__fact">
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                <span><strong>Deleted, not paused</strong> The row is removed from our records the moment you press it.</span>
+              </li>
+              <li class="unsub__fact">
+                <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+                <span><strong>Never sold or shared</strong> The list has only ever been used to send our own emails.</span>
+              </li>
+              <li class="unsub__fact">
+                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                <span><strong>Come back any time</strong> The sign-up sits at the bottom of the home page.</span>
+              </li>
+            </ul>
           </div>
 
         <?php else: ?>
           <!-- ===================== bad link ===================== -->
-          <div class="form-card text-center" data-reveal>
+          <div class="unsub unsub--invalid" data-reveal>
+            <span class="unsub__mark" aria-hidden="true"><i class="fa-solid fa-link-slash"></i></span>
+
             <span class="eyebrow">Hmm</span>
-            <h2 class="section-title">That link does not look right</h2>
+            <h2 class="unsub__title">That link looks broken</h2>
 
-            <div class="alert-note alert-note--error" role="alert">
-              <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
-              <span>The unsubscribe link is incomplete or has been altered on its way here.</span>
-            </div>
+            <p class="unsub__lead">
+              The unsubscribe link is incomplete or was altered on its way here, so we cannot
+              tell which address to remove. Nothing has been changed.
+            </p>
 
-            <p class="section-text">
+            <p class="unsub__lead">
               Email programs sometimes break long links across two lines. Open the email again and
-              click <strong>Unsubscribe</strong> at the very bottom, or reply to it and ask us to
-              take you off — we will do it by hand the same day.
+              press <strong>Unsubscribe</strong> at the very bottom — or write to us and we will
+              take you off by hand the same day.
             </p>
 
             <div class="hero__actions">

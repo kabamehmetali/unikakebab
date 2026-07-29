@@ -305,22 +305,127 @@ function email_inline_styles(string $html): string
 }
 
 /**
- * Wrap finished content in the branded shell: charcoal header, cream
- * body, store details and — always, without exception — the unsubscribe
- * footer. Nothing else in the codebase builds an email body.
+ * The photo banner at the top of an email, built to match the hero on the
+ * website: the store photo, a dark veil over it, the logo, an eyebrow, a
+ * headline in caps and the gold flourish underneath.
+ *
+ * Which photo it uses is the admin's choice (Settings → Outgoing email),
+ * defaulting to the home page hero — so the email opens on the same picture
+ * the visitor saw on the site.
+ *
+ * Old Outlook ignores CSS background images, and no VML trick makes a
+ * cover-fitted photo behave there. It gets the flat charcoal band instead,
+ * which is exactly the header this shell had before — the words never end up
+ * on top of a picture that failed to load.
  */
-function email_wrap(string $contentHtml, array $vars, string $preheader = ''): string
+function email_hero_block(array $vars, array $hero = []): string
+{
+    $siteName = (string)($vars['site_name'] ?? setting('site_name', 'Unika Kebab'));
+    $siteUrl  = (string)($vars['site_url'] ?? abs_url());
+    $logo     = abs_url(setting('logo', 'assets/img/logo.png'));
+
+    $image = trim((string)($hero['image'] ?? setting('email_hero_image', '')));
+    if ($image === '') {
+        $image = setting('hero_image', 'assets/img/hero-home.jpg');
+    }
+    $photo    = abs_media($image, 'assets/img/hero-home.jpg');
+    $ornament = abs_url('assets/img/ornament.png');
+
+    // Tokens are allowed in the wording, so a banner can greet by name.
+    $render  = static fn(string $text): string => trim(email_render($text, $vars));
+    $eyebrow = $render((string)($hero['eyebrow'] ?? setting('email_hero_eyebrow', 'The Unika list')));
+    $title   = $render((string)($hero['title']   ?? setting('email_hero_title', 'You are on the list')));
+    $text    = $render((string)($hero['text']    ?? setting('email_hero_text',
+        'One short email a month, straight off the charcoal.')));
+
+    return '
+        <tr>
+          <td class="uk-hero" align="center" bgcolor="#12100e"
+              style="background-color:#12100e;background-image:url(\'' . e($photo) . '\');
+                     background-size:cover;background-position:center center;background-repeat:no-repeat;">
+
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td class="uk-head" align="center"
+                    style="padding:44px 36px 38px;background-color:rgba(10,8,7,0.62);">
+
+                  <a href="' . e($siteUrl) . '" style="text-decoration:none;">
+                    <img src="' . e($logo) . '" alt="' . e($siteName) . '" width="104"
+                         style="display:block;margin:0 auto 16px;width:104px;max-width:104px;height:auto;border:0;" />
+                  </a>'
+                  . ($eyebrow === '' ? '' : '
+                  <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;
+                              letter-spacing:.26em;text-transform:uppercase;color:#f4b007;
+                              padding-bottom:10px;">' . e($eyebrow) . '</div>') . '
+
+                  <div class="uk-hero-title"
+                       style="font-family:\'Anton\',\'Arial Narrow\',Arial,Helvetica,sans-serif;font-size:36px;
+                              line-height:1.08;font-weight:700;letter-spacing:.02em;text-transform:uppercase;
+                              color:#fff8ec;text-shadow:0 2px 14px rgba(5,2,2,.6);">' . e($title) . '</div>'
+                  . ($text === '' ? '' : '
+                  <div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;
+                              color:rgba(255,248,236,.78);padding-top:12px;max-width:400px;
+                              margin:0 auto;">' . e($text) . '</div>') . '
+
+                  <img src="' . e($ornament) . '" alt="" width="200" aria-hidden="true"
+                       style="display:block;margin:16px auto 0;width:200px;max-width:70%;height:auto;border:0;" />
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>';
+}
+
+/** The compact charcoal header: logo, name, tagline. Used when there is no banner. */
+function email_plain_header(array $vars): string
+{
+    $siteName = (string)($vars['site_name'] ?? setting('site_name', 'Unika Kebab'));
+    $tagline  = (string)($vars['site_tagline'] ?? '');
+    $siteUrl  = (string)($vars['site_url'] ?? abs_url());
+    $logo     = abs_url(setting('logo', 'assets/img/logo.png'));
+
+    return '
+        <tr>
+          <td class="uk-head" align="center" style="background:#12100e;padding:30px 36px;">
+            <a href="' . e($siteUrl) . '" style="text-decoration:none;">
+              <img src="' . e($logo) . '" alt="' . e($siteName) . '" width="120"
+                   style="display:block;margin:0 auto 10px;width:120px;max-width:120px;height:auto;border:0;" />
+            </a>
+            <div style="font-family:Helvetica,Arial,sans-serif;font-size:19px;font-weight:700;
+                        letter-spacing:.08em;text-transform:uppercase;color:#f4b007;">' . e($siteName) . '</div>'
+            . ($tagline === '' ? '' : '
+            <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:.22em;
+                        text-transform:uppercase;color:rgba(255,248,236,.62);padding-top:5px;">' . e($tagline) . '</div>') . '
+          </td>
+        </tr>';
+}
+
+/**
+ * Wrap finished content in the branded shell: header — the photo banner when
+ * the email asks for one — cream body, store details and, always without
+ * exception, the unsubscribe footer. Nothing else in the codebase builds an
+ * email body.
+ *
+ * $opts: ['hero' => true] for the banner, or ['hero' => ['title' => …]] to
+ * override its wording for one email.
+ */
+function email_wrap(string $contentHtml, array $vars, string $preheader = '', array $opts = []): string
 {
     $siteName    = (string)($vars['site_name'] ?? setting('site_name', 'Unika Kebab'));
-    $tagline     = (string)($vars['site_tagline'] ?? '');
     $address     = (string)($vars['address'] ?? '');
     $phone       = (string)($vars['phone'] ?? '');
     $siteUrl     = (string)($vars['site_url'] ?? abs_url());
     $unsubscribe = (string)($vars['unsubscribe_url'] ?? abs_url('unsubscribe.php'));
-    $logo        = abs_url(setting('logo', 'assets/img/logo.png'));
+    $reader      = trim((string)($vars['email'] ?? ''));
     $note        = trim(setting('email_footer_note', 'You are receiving this because you joined the ' . $siteName . ' list.'));
 
     $content = email_inline_styles($contentHtml);
+
+    // The banner replaces the compact header when an email asks for one.
+    $heroOpt = $opts['hero'] ?? false;
+    $header  = $heroOpt
+        ? email_hero_block($vars, is_array($heroOpt) ? $heroOpt : [])
+        : email_plain_header($vars);
 
     // Sits in the inbox preview line, invisible once the email is opened.
     $hidden = $preheader === '' ? '' :
@@ -334,13 +439,19 @@ function email_wrap(string $contentHtml, array $vars, string $preheader = ''): s
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>' . e($siteName) . '</title>
 <style type="text/css">
+  /* The banner headline in the site\'s own display face. Apple Mail and iOS
+     honour this; everywhere else falls back to the condensed stack below,
+     which is the same fallback the website uses. */
+  @import url(\'https://fonts.googleapis.com/css2?family=Anton&display=swap\');
+
   body { margin:0; padding:0; width:100% !important; }
   img { -ms-interpolation-mode:bicubic; }
   a { color:#cb8c0e; }
   @media only screen and (max-width:620px) {
     .uk-wrap { width:100% !important; }
     .uk-pad  { padding-left:22px !important; padding-right:22px !important; }
-    .uk-head { padding:26px 22px !important; }
+    .uk-head { padding:30px 22px 26px !important; }
+    .uk-hero-title { font-size:27px !important; }
   }
 </style>
 </head>
@@ -354,20 +465,7 @@ function email_wrap(string $contentHtml, array $vars, string $preheader = ''): s
              style="width:600px;max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;
                     box-shadow:0 2px 10px rgba(18,16,14,0.06);">
 
-        <!-- header -->
-        <tr>
-          <td class="uk-head" align="center" style="background:#12100e;padding:30px 36px;">
-            <a href="' . e($siteUrl) . '" style="text-decoration:none;">
-              <img src="' . e($logo) . '" alt="' . e($siteName) . '" width="120"
-                   style="display:block;margin:0 auto 10px;width:120px;max-width:120px;height:auto;border:0;" />
-            </a>
-            <div style="font-family:Helvetica,Arial,sans-serif;font-size:19px;font-weight:700;
-                        letter-spacing:.08em;text-transform:uppercase;color:#f4b007;">' . e($siteName) . '</div>'
-            . ($tagline === '' ? '' : '
-            <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:.22em;
-                        text-transform:uppercase;color:rgba(255,248,236,.62);padding-top:5px;">' . e($tagline) . '</div>') . '
-          </td>
-        </tr>
+        <!-- header -->' . $header . '
         <tr><td style="height:4px;background:#f4b007;line-height:4px;font-size:0;">&nbsp;</td></tr>
 
         <!-- content -->
@@ -396,21 +494,45 @@ function email_wrap(string $contentHtml, array $vars, string $preheader = ''): s
           </td>
         </tr>
 
-        <!-- footer: the unsubscribe button is part of the shell, so no
-             email can be built without one -->
+        <!-- footer: the unsubscribe block is part of the shell, so no
+             email can be built without one. It says who it was sent to, why,
+             and what the button does before it is pressed — a reader who can
+             see all three reaches for Unsubscribe instead of Spam. -->
         <tr>
-          <td align="center" style="background:#12100e;padding:26px 34px 30px;">
-            <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;
-                        color:rgba(255,248,236,.55);padding-bottom:14px;">' . e($note) . '</div>
+          <td class="uk-pad" align="center" style="background:#12100e;padding:30px 34px 32px;">
 
-            <a href="' . e($unsubscribe) . '"
-               style="display:inline-block;padding:11px 26px;border:1px solid rgba(255,248,236,.34);
-                      border-radius:999px;font-family:Helvetica,Arial,sans-serif;font-size:14px;
-                      font-weight:700;color:#fff8ec;text-decoration:none;">Unsubscribe</a>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                   style="background:rgba(255,248,236,.05);border-radius:14px;">
+              <tr>
+                <td align="center" style="padding:22px 24px 24px;">
+
+                  <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;
+                              letter-spacing:.22em;text-transform:uppercase;color:#f4b007;
+                              padding-bottom:9px;">Not for you?</div>
+
+                  <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.65;
+                              color:rgba(255,248,236,.62);padding-bottom:16px;">' . e($note)
+                    . ($reader === '' ? '' : '<br />Sent to <span style="color:#fff8ec;">'
+                        . e($reader) . '</span>.') . '</div>
+
+                  <a href="' . e($unsubscribe) . '"
+                     style="display:inline-block;padding:12px 30px;background:#f4b007;
+                            border-radius:999px;font-family:Helvetica,Arial,sans-serif;font-size:14px;
+                            font-weight:700;letter-spacing:.02em;color:#12100e;
+                            text-decoration:none;">Unsubscribe in one click</a>
+
+                  <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;
+                              color:rgba(255,248,236,.45);padding-top:12px;">
+                    One press deletes your address — no login, no questions, no copy kept.
+                  </div>
+                </td>
+              </tr>
+            </table>
 
             <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;
-                        color:rgba(255,248,236,.4);padding-top:16px;">
-              &copy; ' . e(date('Y')) . ' ' . e($siteName) . ' &middot;
+                        color:rgba(255,248,236,.4);padding-top:18px;">
+              &copy; ' . e(date('Y')) . ' ' . e($siteName)
+              . ($address === '' ? '' : ' &middot; ' . e($address)) . '<br />
               <a href="' . e($siteUrl) . '" style="color:rgba(255,248,236,.55);text-decoration:underline;">'
               . e(preg_replace('#^https?://#i', '', $siteUrl)) . '</a>
             </div>
@@ -461,7 +583,7 @@ function email_html_to_text(string $html): string
  * Build one finished email for one reader.
  * Returns ['subject', 'html', 'text', 'unsubscribe_url'].
  */
-function email_compose(array $person, string $subject, string $bodyHtml, string $preheader = ''): array
+function email_compose(array $person, string $subject, string $bodyHtml, string $preheader = '', array $opts = []): array
 {
     $vars = email_vars($person);
 
@@ -469,7 +591,7 @@ function email_compose(array $person, string $subject, string $bodyHtml, string 
     $preheader = trim(email_render($preheader, $vars, false));
     $content   = email_render($bodyHtml, $vars);
 
-    $html = email_wrap($content, $vars, $preheader);
+    $html = email_wrap($content, $vars, $preheader, $opts);
 
     $text = email_html_to_text($content);
     if ($preheader !== '') {
@@ -948,7 +1070,7 @@ function mail_send(string $toEmail, string $toName, array $composed, array $opts
 /** Compose and send in one step — the shape most callers want. */
 function mail_send_template(array $person, string $subject, string $bodyHtml, string $preheader = '', array $opts = []): array
 {
-    $composed = email_compose($person, $subject, $bodyHtml, $preheader);
+    $composed = email_compose($person, $subject, $bodyHtml, $preheader, ['hero' => $opts['hero'] ?? false]);
 
     return mail_send(
         (string)($person['email'] ?? ''),
@@ -980,10 +1102,14 @@ function send_welcome_email(array $subscriber): array
             (string)$template['subject'],
             (string)$template['body_html'],
             (string)($template['preheader'] ?? ''),
+            // The welcome opens on the website's hero photo — it is the first
+            // thing a new subscriber gets, so it looks like the site they just
+            // signed up on.
+            //
             // Somebody is waiting on a page load for this one, so an
             // unreachable mail server gives up quickly instead of holding
             // the sign-up form open for the full timeout.
-            ['kind' => 'welcome', 'config' => ['timeout' => 8]]
+            ['kind' => 'welcome', 'hero' => true, 'config' => ['timeout' => 8]]
         );
     } catch (Throwable $e) {
         mail_log('welcome', (string)($subscriber['email'] ?? ''), (string)$template['subject'], 'failed', $e->getMessage());
