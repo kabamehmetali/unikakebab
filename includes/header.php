@@ -6,11 +6,13 @@
  *   $pageKey   string  meta lookup key: home | menu | contact | locations | order
  *   $bodyClass string  optional extra class on <body>
  *   $pageCss   string  optional stylesheet name inside assets/css/pages/
+ *   $noIndex   bool    keep the page out of search results
  */
 
 $pageKey   = $pageKey   ?? 'home';
 $bodyClass = $bodyClass ?? '';
 $pageCss   = $pageCss   ?? '';
+$noIndex   = $noIndex   ?? false;
 
 $meta      = page_meta($pageKey);
 $siteName  = setting('site_name', 'Unika Kebab');
@@ -31,6 +33,9 @@ $navOrders = order_links();
 <meta name="keywords" content="<?= e($meta['keywords']) ?>">
 <?php endif; ?>
 <meta name="theme-color" content="#12100e">
+<?php if ($noIndex): ?>
+<meta name="robots" content="noindex, nofollow">
+<?php endif; ?>
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="<?= e($siteName) ?>">

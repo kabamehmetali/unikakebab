@@ -66,6 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect($listUrl . '#add-form');
         }
 
+        $welcome = !empty($_POST['send_welcome']);
+        $added   = false;
+
         $existing = db_one('SELECT id, is_active FROM subscribers WHERE email = ?', [$email]);
         if ($existing) {
             if ((int)$existing['is_active'] === 1) {
@@ -73,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 db_run('UPDATE subscribers SET is_active = 1, name = ? WHERE id = ?', [$name, (int)$existing['id']]);
                 flash(e($email) . ' was already on the list and has been reactivated.', 'success');
+                $added = true;
             }
         } else {
             db_run(
@@ -80,6 +84,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 [$name, $email, client_ip()]
             );
             flash(e($name) . ' was added to the list.', 'success');
+            $added = true;
+        }
+
+        // Adding somebody by hand is not the same as them signing up, so the
+        // welcome is opt-in here — and a failure is reported rather than
+        // swallowed, because you are standing right there watching.
+        if ($added && $welcome) {
+            $result = send_welcome_email(['name' => $name, 'email' => $email]);
+            flash(
+                $result['ok']
+                    ? 'The welcome email is on its way to ' . e($email) . '.'
+                    : 'They are on the list, but the welcome email failed — ' . e($result['detail']),
+                $result['ok'] ? 'success' : 'error'
+            );
         }
 
         redirect($listUrl);
@@ -165,6 +183,8 @@ $listLink = function (array $extra = []) use ($filter, $search): string {
     return admin_url('subscribers.php' . ($q ? '?' . http_build_query($q) : ''));
 };
 
+$welcomeReady = mail_is_enabled() && setting('welcome_email_enabled', '1') === '1' && welcome_template() !== null;
+
 $title     = 'Subscribers';
 $subtitle  = $active . ' active subscriber' . ($active === 1 ? '' : 's') . ' on the newsletter list';
 $activeNav = 'subscribers';
@@ -233,11 +253,20 @@ require __DIR__ . '/includes/header.php';
       </form>
 
       <?php if ($subscribers): ?>
-        <a class="a-btn a-btn--ghost a-btn--sm ms-auto" href="<?= e($listLink(['export' => 'csv'])) ?>">
+        <a class="a-btn a-btn--sm ms-auto" href="<?= e(admin_url('campaigns.php?new=1')) ?>#camp-form">
+          <i class="fa-solid fa-paper-plane"></i> Email this list
+        </a>
+        <a class="a-btn a-btn--ghost a-btn--sm" href="<?= e($listLink(['export' => 'csv'])) ?>">
           <i class="fa-solid fa-file-csv"></i> Export CSV
         </a>
       <?php endif; ?>
     </div>
+
+    <p class="a-field__hint a-mb0">
+      <i class="fa-solid fa-circle-info"></i>
+      Anyone who unsubscribes from an email is deleted from this table outright — the row disappears
+      rather than turning grey. “Unsubscribed” below means you switched somebody off by hand.
+    </p>
   </div>
 
   <?php if (!$subscribers): ?>
@@ -340,6 +369,21 @@ require __DIR__ . '/includes/header.php';
       </div>
       <p class="a-field__hint">
         Only add people who have actually asked to hear from you — it keeps your list clean and your emails out of spam folders.
+      </p>
+
+      <label class="a-switch">
+        <input type="checkbox" name="send_welcome" value="1" <?= $welcomeReady ? 'checked' : 'disabled' ?>>
+        <span class="a-switch__track"></span>
+        <span>Send them the welcome email now</span>
+      </label>
+      <p class="a-field__hint">
+        <?php if ($welcomeReady): ?>
+          The same email somebody gets when they join through the website.
+          <a href="<?= e(admin_url('templates.php')) ?>">Edit the wording</a>.
+        <?php else: ?>
+          Unavailable until outgoing email is set up under
+          <a href="<?= e(admin_url('settings.php#smtp')) ?>">Settings</a>.
+        <?php endif; ?>
       </p>
     </div>
 

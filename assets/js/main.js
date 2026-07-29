@@ -264,6 +264,22 @@
         setActive(pill.getAttribute('href').replace('#', ''));
       });
     });
+
+    /* The strip hides its scrollbar, so on a narrow screen the last category
+       just looks cut in half. Fade whichever edge still has pills behind it,
+       so it reads as "there is more this way" rather than as clipped text. */
+    if (strip) {
+      var edges = function () {
+        var over = strip.scrollWidth - strip.clientWidth;
+        strip.classList.toggle('has-more-start', over > 1 && strip.scrollLeft > 2);
+        strip.classList.toggle('has-more-end', over > 1 && strip.scrollLeft < over - 2);
+      };
+
+      edges();
+      strip.addEventListener('scroll', edges, { passive: true });
+      window.addEventListener('resize', edges);
+      if ('ResizeObserver' in window) new ResizeObserver(edges).observe(strip);
+    }
   }
 
   /* --- footer year -------------------------------------------------- */

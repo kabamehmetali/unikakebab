@@ -171,13 +171,20 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
 .ornament--alt { width: min(260px, 58%); margin-top: 1.1rem; }
 .ornament--start { margin-inline: 0; }
 
-/* Sitting above a block of content rather than under a heading. */
-.ornament--top { margin: 0 auto clamp(2rem, 4vw, 3rem); }
+/* Sitting above a block of content rather than under a heading.
+   The space above the ornament comes from the hero's own bottom padding, so the
+   space below it is set to exactly the same clamp — the flourish then sits
+   centred between the hero text and the content, reading as a divider between
+   the two rather than as a lid on the block underneath. */
+.ornament--top { margin: 0 auto clamp(2.5rem, 5vw, 3.5rem); }
 
-/* A section that opens with an ornament needs almost no top padding — the hero
-   above it already supplies the breathing room, and stacking both leaves a
-   conspicuous empty band. */
-.section--tight-top { padding-top: clamp(1rem, 2vw, 1.5rem); }
+/* A section that opens with an ornament adds no top padding of its own — the
+   hero above it already supplies the breathing room, and stacking both leaves a
+   conspicuous empty band.
+   Written as a double class on purpose: plain .section is defined further down
+   this file, and at equal specificity the later rule would otherwise win and
+   put the full section padding back. */
+.section.section--tight-top { padding-top: 0; }
 
 /* Mirror it when closing a section instead of opening one. */
 .ornament--flip { transform: scaleY(-1); }
@@ -434,6 +441,26 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
   .u-nav__cta { margin: 1rem 0 0; display: block; }
 }
 
+/* Small laptops (992–1199px).
+   Bootstrap pins .container at 960px across this whole range, so the moment
+   the desktop navbar appears it is at its most cramped: logo, four links and
+   the Order Online button all fighting for the same 960px, with the layout
+   only loosening again at 1200. Let the width ramp up with the window instead
+   of sitting on a plateau, and take a little air out of the link spacing at
+   the tight end. Content and navbar stay on the same gridlines. */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .container { max-width: min(100% - 2rem, 1140px); }
+  .u-nav__link { margin: 0 0.5rem; font-size: 0.78rem; letter-spacing: 0.1em; }
+  .u-nav__logo { height: 54px; }
+  .u-nav.is-stuck .u-nav__logo { height: 46px; }
+}
+
+/* Very small phones: the brand mark takes the room the toggler needs. */
+@media (max-width: 400px) {
+  .u-nav__logo { height: 44px; }
+  .u-nav .navbar { padding: 0.45rem 0; }
+}
+
 /* ---------------------------------------------------------------------
    7. Hero
    --------------------------------------------------------------------- */
@@ -476,6 +503,13 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
    dead band under the last line of text. */
 .hero--compact { min-height: min(34vh, 310px); }
 .hero--compact .hero__inner { padding: clamp(2.5rem, 5vw, 3.5rem) 0; }
+
+/* The banner is centred by .hero's flex alignment, so whenever the minimum
+   height is taller than the copy the leftover is split above and below it.
+   That trailing half is what pushes an ornament in the next section away from
+   the hero text it belongs to — so a flush hero ends at its own padding and
+   nothing else, letting the ornament's margins set both gaps to the same size. */
+.hero--flush { min-height: 0; }
 .hero--compact .hero__crumbs { margin-bottom: 0.75rem; }
 .hero--compact .eyebrow { margin-bottom: 0.6rem; }
 
@@ -739,6 +773,22 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
 }
 .menu-nav__scroll::-webkit-scrollbar { display: none; }
 
+/* The scrollbar is hidden, so main.js flags whichever edge still has pills
+   behind it and we fade that side — otherwise the last category simply looks
+   chopped in half on a phone or a narrow tablet. */
+.menu-nav__scroll.has-more-end {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent 100%);
+          mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent 100%);
+}
+.menu-nav__scroll.has-more-start {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 34px);
+          mask-image: linear-gradient(to right, transparent 0, #000 34px);
+}
+.menu-nav__scroll.has-more-start.has-more-end {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 34px, #000 calc(100% - 34px), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 34px, #000 calc(100% - 34px), transparent 100%);
+}
+
 .menu-pill {
   flex: none;
   padding: 0.6rem 1.15rem;
@@ -920,6 +970,24 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
 [data-view="grid"] .menu-row__thumb img { transition-duration: 0.8s; }
 [data-view="grid"] .menu-row:hover .menu-row__thumb img { transform: scale(1.08); }
 
+/* A real photo is cropped to fill the frame — that is what you want of food.
+   The placeholder is not a photo: it is artwork with a logo and a caption, and
+   cropping it to 4:3 cuts the top off the logo and the caption off the bottom.
+   Show that one whole, centred in the frame, whatever shape it was saved at. */
+/* The image already fills the frame from the base rule above; swapping cover
+   for contain letterboxes the artwork inside it instead of cropping it. Do not
+   reach for grid/place-items here — centring the image makes it size to its own
+   content, it grows past the 4:3 frame, and overflow:hidden crops it again. */
+[data-view="grid"] .menu-row__thumb[data-placeholder] { background: var(--cream-2); }
+[data-view="grid"] .menu-row__thumb[data-placeholder] img { object-fit: contain; }
+[data-view="grid"] .menu-row:hover .menu-row__thumb[data-placeholder] img { transform: scale(1.04); }
+
+/* One card per row on a phone means a 4:3 photo is a lot of scrolling before
+   the next dish — a slightly wider frame keeps more of the menu in view. */
+@media (max-width: 575.98px) {
+  [data-view="grid"] .menu-row__thumb { aspect-ratio: 16 / 10; }
+}
+
 [data-view="grid"] .menu-row__body { width: 100%; padding: 1.15rem 1.3rem 1.35rem; }
 [data-view="grid"] .menu-row__name { font-size: 1.24rem; }
 [data-view="grid"] .menu-row__price { font-size: 1.24rem; }
@@ -930,6 +998,16 @@ h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.015
 }
 @media (min-width: 576px) and (max-width: 991.98px) {
   [data-view="grid"] .menu-col { width: 50%; }
+}
+
+/* The list view is a thumbnail beside text, so on a narrow phone the thumbnail
+   has to give way before the dish name starts wrapping onto three lines. */
+@media (max-width: 420px) {
+  .menu-row { gap: 0.8rem; padding: 0.85rem; }
+  .menu-row__thumb { flex: 0 0 68px; width: 68px; height: 68px; border-radius: 10px; }
+  .menu-row__name,
+  .menu-row__price { font-size: 1.04rem; }
+  .menu-row__text { font-size: 0.88rem; }
 }
 
 /* ---------------------------------------------------------------------
@@ -1261,20 +1339,24 @@ body.has-modal { overflow: hidden; }
 }
 .cta-band__text { color: rgba(255, 248, 236, 0.72); margin: 0; }
 
+/* Home call-to-action controls form one clean vertical column. */
+.home-cta__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+}
+
 /* Locations page: keep the ordering button and phone link together. */
 .location-cta__actions {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 1rem;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
 }
 .location-cta__call { margin: 0; }
-@media (min-width: 992px) {
-  .location-cta__actions {
-    align-items: flex-end;
-    text-align: right;
-  }
-}
 
 /* ---------------------------------------------------------------------
    14. Info cards (contact + locations)
@@ -1453,6 +1535,15 @@ body.has-modal { overflow: hidden; }
   box-shadow: 0 0 0 4px var(--gold-soft);
 }
 .field__hint { font-size: 0.82rem; color: var(--muted); margin: 0.4rem 0 0; }
+.recaptcha-wrap { margin: 1.5rem 0; }
+.recaptcha-v3-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+.recaptcha-v3-note a { color: inherit; text-decoration: underline; text-underline-offset: 0.16em; }
+.recaptcha-v3-note a:hover { color: var(--gold-deep); }
 
 /* honeypot — hidden from people, visible to bots */
 .hp-field { position: absolute; left: -5000px; opacity: 0; height: 0; overflow: hidden; }
@@ -1680,6 +1771,38 @@ body.has-modal { overflow: hidden; }
 }
 .u-foot__bar a { color: rgba(255, 248, 236, 0.62); }
 .u-foot__bar a:hover { color: var(--gold); }
+.u-foot__credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+.u-foot__credit a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding-bottom: 0.15rem;
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  transition: color 0.3s var(--ease);
+}
+.u-foot__credit a::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0.35);
+  transform-origin: left;
+  transition: transform 0.3s var(--ease);
+}
+.u-foot__credit a i { font-size: 0.72em; transition: transform 0.3s var(--ease); }
+.u-foot__credit a:hover { color: var(--gold-light); }
+.u-foot__credit a:hover::after { transform: scaleX(1); }
+.u-foot__credit a:hover i { transform: translate(2px, -2px); }
 
 /* back to top */
 .to-top {

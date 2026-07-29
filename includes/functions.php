@@ -446,6 +446,79 @@ function csrf_require(): void
 }
 
 // =====================================================================
+//  Google reCAPTCHA (v3 score-based verification)
+// =====================================================================
+
+/** True when both reCAPTCHA keys have been configured in Settings. */
+function recaptcha_is_enabled(): bool
+{
+    return trim(setting('google_recaptcha_site_key')) !== ''
+        && trim(setting('google_recaptcha_secret_key')) !== '';
+}
+
+/** Verify a browser's reCAPTCHA v3 response, score, and intended action with Google. */
+function recaptcha_verify(string $token, string $expectedAction): array
+{
+    if (!recaptcha_is_enabled()) {
+        return [true, ''];
+    }
+
+    $token = trim($token);
+    if ($token === '') {
+        return [false, 'Security verification could not be completed. Please try again.'];
+    }
+
+    $payload = [
+        'secret'   => setting('google_recaptcha_secret_key'),
+        'response' => $token,
+    ];
+    $ip = client_ip();
+    if (filter_var($ip, FILTER_VALIDATE_IP)) {
+        $payload['remoteip'] = $ip;
+    }
+
+    $body = false;
+    $data = http_build_query($payload, '', '&');
+
+    if (function_exists('curl_init')) {
+        $curl = curl_init('https://www.google.com/recaptcha/api/siteverify');
+        if ($curl !== false) {
+            curl_setopt_array($curl, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $data,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $body = curl_exec($curl);
+            curl_close($curl);
+        }
+    } else {
+        $context = stream_context_create(['http' => [
+            'method'  => 'POST',
+            'header'  => "Content-Type: application/x-www-form-urlencoded\r\n",
+            'content' => $data,
+            'timeout' => 10,
+        ]]);
+        $body = @file_get_contents('https://www.google.com/recaptcha/api/siteverify', false, $context);
+    }
+
+    $result = is_string($body) ? json_decode($body, true) : null;
+    if (!is_array($result) || empty($result['success'])) {
+        return [false, 'We could not verify the security check. Please try again.'];
+    }
+
+    $action = (string)($result['action'] ?? '');
+    $score  = $result['score'] ?? null;
+    if (!hash_equals($expectedAction, $action) || !is_numeric($score) || (float)$score < 0.5) {
+        return [false, 'We could not verify the security check. Please try again.'];
+    }
+
+    return [true, ''];
+}
+
+// =====================================================================
 //  Flash messages
 // =====================================================================
 
@@ -716,7 +789,7 @@ function old(string $key, $default = '')
 /** Remember submitted values so the form can be redrawn after a redirect. */
 function old_set(array $data): void
 {
-    unset($data['_csrf']);
+    unset($data['_csrf'], $data['g-recaptcha-response']);
     $_SESSION['old'] = $data;
 }
 

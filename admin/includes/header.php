@@ -5,15 +5,17 @@
  * A page sets these before including this file:
  *   $title     string  page heading
  *   $subtitle  string  small line under the heading
- *   $activeNav string  dashboard|home|categories|items|store|messages|subscribers|settings|account
+ *   $activeNav string  dashboard|home|categories|items|store|campaigns|templates|
+ *                      subscribers|messages|settings|account
  */
 
 $title     = $title     ?? 'Dashboard';
 $subtitle  = $subtitle  ?? '';
 $activeNav = $activeNav ?? '';
 
-$admin  = current_admin();
-$unread = (int)(db_one('SELECT COUNT(*) AS n FROM contact_messages WHERE is_read = 0')['n'] ?? 0);
+$admin   = current_admin();
+$unread  = (int)(db_one('SELECT COUNT(*) AS n FROM contact_messages WHERE is_read = 0')['n'] ?? 0);
+$sending = (int)(db_one("SELECT COUNT(*) AS n FROM email_campaigns WHERE status = 'sending'")['n'] ?? 0);
 
 /** Sidebar link helper. */
 function a_nav(string $key, string $href, string $icon, string $label, string $active, int $count = 0): void
@@ -67,10 +69,16 @@ function a_nav(string $key, string $href, string $icon, string $label, string $a
         a_nav('store',      'store.php',      'fa-solid fa-store',        'Store Info',  $activeNav);
       ?>
 
+      <li class="a-side__group">Email marketing</li>
+      <?php
+        a_nav('campaigns',   'campaigns.php',   'fa-solid fa-paper-plane', 'Campaigns',   $activeNav, $sending);
+        a_nav('templates',   'templates.php',   'fa-solid fa-file-lines',  'Templates',   $activeNav);
+        a_nav('subscribers', 'subscribers.php', 'fa-solid fa-users',       'Subscribers', $activeNav);
+      ?>
+
       <li class="a-side__group">Customers</li>
       <?php
-        a_nav('messages',    'messages.php',    'fa-solid fa-envelope-open-text', 'Messages',    $activeNav, $unread);
-        a_nav('subscribers', 'subscribers.php', 'fa-solid fa-users',              'Subscribers', $activeNav);
+        a_nav('messages', 'messages.php', 'fa-solid fa-envelope-open-text', 'Messages', $activeNav, $unread);
       ?>
 
       <li class="a-side__group">System</li>

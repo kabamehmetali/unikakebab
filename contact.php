@@ -62,6 +62,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect($backTo);
     }
 
+    if (recaptcha_is_enabled()) {
+        [$recaptchaOk, $recaptchaMessage] = recaptcha_verify(
+            (string)($_POST['g-recaptcha-response'] ?? ''),
+            'contact_message'
+        );
+        if (!$recaptchaOk) {
+            old_set($_POST);
+            $_SESSION['contact_errors'] = [$recaptchaMessage];
+            redirect($backTo);
+        }
+    }
+
     // --- 1. The message is saved first. Nothing below may lose it. -----
     db_run(
         'INSERT INTO contact_messages (name, email, phone, subject, message, ip_address)
@@ -161,6 +173,8 @@ $embedUrl = ($mapsKey !== '' && $embedQuery !== '')
     : '';
 
 $hasDetails = ($addressText !== '' || !empty($s['phone']) || !empty($s['email']));
+$recaptchaEnabled = recaptcha_is_enabled();
+$recaptchaSiteKey = setting('google_recaptcha_site_key');
 
 $mapTitle = 'Map showing ' . ($addressName !== '' ? $addressName : 'our restaurant')
           . ($addressText !== '' ? ' at ' . $addressText : '');
@@ -174,10 +188,15 @@ $hero = [
     'crumb'    => 'Contact',
     'ornament' => false,      // it opens the content section below instead
     'compact'  => true,       // get people to the form quickly
+    'flush'    => true,       // so that ornament sits evenly between the two
 ];
 require __DIR__ . '/includes/header.php';
 require __DIR__ . '/includes/hero.php';
 ?>
+
+<?php if ($recaptchaEnabled): ?>
+  <script src="https://www.google.com/recaptcha/api.js?render=<?= e(rawurlencode($recaptchaSiteKey)) ?>" async defer></script>
+<?php endif; ?>
 
 <!-- ================= form + store details ================= -->
 <section class="section section--cream section--tight-top">
@@ -189,7 +208,7 @@ require __DIR__ . '/includes/hero.php';
     <div class="row g-5">
 
       <!-- ---------- the form ---------- -->
-      <div class="col-lg-7">
+      <div class="col-lg-7 d-flex flex-column gap-4">
         <div class="form-card" id="contact-form" data-reveal>
 
           <span class="eyebrow eyebrow--start">Send a note</span>
@@ -207,7 +226,7 @@ require __DIR__ . '/includes/hero.php';
             </div>
           <?php endforeach; ?>
 
-          <form action="<?= e(url('contact.php')) ?>" method="post" data-guard novalidate>
+          <form action="<?= e(url('contact.php')) ?>" method="post" id="contact-message-form" data-guard novalidate>
             <?= csrf_field() ?>
 
             <div class="hp-field" aria-hidden="true">
@@ -264,11 +283,72 @@ require __DIR__ . '/includes/hero.php';
               <p class="field__hint">At least 10 characters. We reply to every message that is not a robot.</p>
             </div>
 
+            <?php if ($recaptchaEnabled): ?>
+              <div class="recaptcha-wrap">
+                <input type="hidden" id="contact-recaptcha-token" name="g-recaptcha-response"
+                       data-recaptcha-site-key="<?= e($recaptchaSiteKey) ?>">
+                <p class="recaptcha-v3-note" id="contact-recaptcha-status" role="status">
+                  This site is protected by reCAPTCHA and the Google
+                  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+                  and <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> apply.
+                </p>
+              </div>
+            <?php endif; ?>
+
             <button class="btn-u btn-gold btn-u--lg" type="submit">
               <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send message
             </button>
           </form>
+
+          <?php if ($recaptchaEnabled): ?>
+            <script>
+            (function () {
+              var form = document.getElementById('contact-message-form');
+              var token = document.getElementById('contact-recaptcha-token');
+              var status = document.getElementById('contact-recaptcha-status');
+              if (!form || !token) return;
+
+              form.addEventListener('submit', function (event) {
+                if (form.dataset.recaptchaSubmitting === '1') return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                if (!window.grecaptcha) {
+                  if (status) status.textContent = 'Security verification is still loading. Please try again in a moment.';
+                  return;
+                }
+
+                form.dataset.recaptchaSubmitting = '1';
+                if (status) status.textContent = 'Verifying security…';
+                window.grecaptcha.ready(function () {
+                  window.grecaptcha.execute(token.dataset.recaptchaSiteKey, { action: 'contact_message' }).then(function (value) {
+                    token.value = value;
+                    form.submit();
+                  }).catch(function () {
+                    form.dataset.recaptchaSubmitting = '0';
+                    if (status) status.textContent = 'Security verification could not start. Please try again.';
+                  });
+                });
+              });
+            }());
+            </script>
+          <?php endif; ?>
         </div>
+
+        <?php if ($addressText !== ''): ?>
+          <div class="info-card" data-reveal data-reveal-delay="1">
+            <div class="info-card__icon"><i class="fa-solid fa-location-dot" aria-hidden="true"></i></div>
+            <div class="info-card__label">Come and see us</div>
+            <p class="info-card__value"><?= e(store_address(', ')) ?></p>
+            <?php if ($searchLink !== ''): ?>
+              <p class="info-card__note">
+                <a class="link-arrow" href="<?= e($searchLink) ?>" target="_blank" rel="noopener">
+                  Open in Google Maps <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                </a>
+              </p>
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
       </div>
 
       <!-- ---------- store details ---------- -->
@@ -294,21 +374,6 @@ require __DIR__ . '/includes/hero.php';
                 <a href="mailto:<?= e($s['email']) ?>"><?= e($s['email']) ?></a>
               </p>
               <p class="info-card__note">Best for catering quotes, invoices and menus in writing.</p>
-            </div>
-          <?php endif; ?>
-
-          <?php if ($addressText !== ''): ?>
-            <div class="info-card" data-reveal data-reveal-delay="3">
-              <div class="info-card__icon"><i class="fa-solid fa-location-dot" aria-hidden="true"></i></div>
-              <div class="info-card__label">Come and see us</div>
-              <p class="info-card__value"><?= e(store_address(', ')) ?></p>
-              <?php if ($searchLink !== ''): ?>
-                <p class="info-card__note">
-                  <a class="link-arrow" href="<?= e($searchLink) ?>" target="_blank" rel="noopener">
-                    Open in Google Maps <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-                  </a>
-                </p>
-              <?php endif; ?>
             </div>
           <?php endif; ?>
 

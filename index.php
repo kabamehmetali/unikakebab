@@ -302,7 +302,7 @@ require __DIR__ . '/includes/header.php';
       </div>
 
       <div class="col-lg-4 text-lg-end" data-reveal data-reveal-delay="2">
-        <div class="d-flex flex-wrap gap-3 justify-content-lg-end">
+        <div class="home-cta__actions">
           <?php if (setting('home_cta_btn_text') !== ''): ?>
             <a class="btn-u btn-gold btn-u--lg" href="<?= e(url(setting('home_cta_btn_link', 'order'))) ?>">
               <?= e(setting('home_cta_btn_text')) ?>

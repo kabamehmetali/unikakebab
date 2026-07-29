@@ -79,6 +79,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('admin/login.php');
     }
 
+    if (recaptcha_is_enabled()) {
+        [$recaptchaOk, $recaptchaMessage] = recaptcha_verify(
+            (string)($_POST['g-recaptcha-response'] ?? ''),
+            'admin_login'
+        );
+        if (!$recaptchaOk) {
+            old_set(['username' => $username]);
+            flash($recaptchaMessage, 'error');
+            redirect('admin/login.php');
+        }
+    }
+
     if (admin_login($username, $password)) {
         login_fail_clear();
 
@@ -114,6 +126,8 @@ $lockMinutes = $locked > 0 ? max(1, (int)ceil($locked / 60)) : 0;
 $messages    = flash_take();
 $siteName    = setting('site_name', 'Unika Kebab');
 $tagline     = setting('site_tagline', 'Charcoal Grill');
+$recaptchaEnabled = recaptcha_is_enabled();
+$recaptchaSiteKey = setting('google_recaptcha_site_key');
 
 // Only offer the starter credentials while they are genuinely still in place:
 // exactly one account, and its password is still "admin123".
@@ -138,6 +152,9 @@ if (count($accounts) === 1 && password_verify('admin123', (string)$accounts[0]['
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap-grid.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
 <link href="<?= e(admin_url('assets/css/admin.css')) ?>" rel="stylesheet">
+<?php if ($recaptchaEnabled): ?>
+<script src="https://www.google.com/recaptcha/api.js?render=<?= e(rawurlencode($recaptchaSiteKey)) ?>" async defer></script>
+<?php endif; ?>
 </head>
 <body>
 
@@ -169,7 +186,7 @@ if (count($accounts) === 1 && password_verify('admin123', (string)$accounts[0]['
       </div>
     <?php endif; ?>
 
-    <form method="post" action="<?= e(admin_url('login.php')) ?>" data-guard>
+    <form method="post" action="<?= e(admin_url('login.php')) ?>" id="admin-login-form" data-guard>
       <?= csrf_field() ?>
 
       <div class="a-field">
@@ -197,10 +214,54 @@ if (count($accounts) === 1 && password_verify('admin123', (string)$accounts[0]['
                <?= $locked > 0 ? 'disabled' : '' ?>>
       </div>
 
+      <?php if ($recaptchaEnabled): ?>
+        <div class="a-recaptcha">
+          <input type="hidden" id="admin-recaptcha-token" name="g-recaptcha-response"
+                 data-recaptcha-site-key="<?= e($recaptchaSiteKey) ?>">
+          <p class="a-recaptcha__note" id="admin-recaptcha-status" role="status">
+            Protected by reCAPTCHA v3.
+          </p>
+        </div>
+      <?php endif; ?>
+
       <button class="a-btn a-btn--block" type="submit" <?= $locked > 0 ? 'disabled' : '' ?>>
         <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Sign in
       </button>
     </form>
+
+    <?php if ($recaptchaEnabled && $locked <= 0): ?>
+      <script>
+      (function () {
+        var form = document.getElementById('admin-login-form');
+        var token = document.getElementById('admin-recaptcha-token');
+        var status = document.getElementById('admin-recaptcha-status');
+        if (!form || !token) return;
+
+        form.addEventListener('submit', function (event) {
+          if (form.dataset.recaptchaSubmitting === '1') return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+
+          if (!window.grecaptcha) {
+            if (status) status.textContent = 'Security verification is still loading. Please try again in a moment.';
+            return;
+          }
+
+          form.dataset.recaptchaSubmitting = '1';
+          if (status) status.textContent = 'Verifying security…';
+          window.grecaptcha.ready(function () {
+            window.grecaptcha.execute(token.dataset.recaptchaSiteKey, { action: 'admin_login' }).then(function (value) {
+              token.value = value;
+              form.submit();
+            }).catch(function () {
+              form.dataset.recaptchaSubmitting = '0';
+              if (status) status.textContent = 'Security verification could not start. Please try again.';
+            });
+          });
+        });
+      }());
+      </script>
+    <?php endif; ?>
 
     <?php if ($showDefaultHint): ?>
       <p class="a-login__hint">

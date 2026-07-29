@@ -6,6 +6,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/mailer.php';
 
 // Pull "old" form input out of the session once per request so a refresh
 // never shows stale values.

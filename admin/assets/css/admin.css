@@ -587,6 +587,8 @@ body.a-dragging { cursor: grabbing; user-select: none; }
 }
 .a-media__body { flex: 1; min-width: 0; }
 .a-media input[type="file"] { font-size: 0.85rem; max-width: 100%; }
+.a-recaptcha { margin: 1.4rem 0; }
+.a-recaptcha__note { margin: 0; color: var(--a-muted); font-size: 0.82rem; }
 
 /* --- drag an image straight onto the box ---------------------------- *
  * The dropzone classes are added by admin.js, so a browser without
@@ -825,6 +827,134 @@ body.a-dragging { cursor: grabbing; user-select: none; }
   align-items: center;
   flex-wrap: wrap;
   border-radius: 0 0 var(--a-radius) var(--a-radius);
+}
+
+/* ---------------------------------------------------------------------
+   Email marketing
+   --------------------------------------------------------------------- */
+
+/* The row you arrived at, so a redirect back to a long list is not a hunt. */
+.a-table tr.is-current > td { background: rgba(244, 176, 7, 0.09); }
+.a-table tr.is-current > td:first-child { box-shadow: inset 3px 0 0 var(--a-gold); }
+
+/* HTML is easier to read and edit in a monospace face. */
+.a-code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.a-field__hint code,
+.a-card__sub code {
+  padding: 0.08em 0.36em;
+  border-radius: 5px;
+  background: #f1ede5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  color: var(--a-ink);
+}
+
+/* --- placeholder chips --------------------------------------------- */
+.a-tokens { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.a-token {
+  border: 1px dashed var(--a-line);
+  background: #fbfaf7;
+  color: var(--a-muted);
+  border-radius: 999px;
+  padding: 0.28rem 0.72rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.2s var(--a-ease), color 0.2s var(--a-ease), border-color 0.2s var(--a-ease);
+}
+.a-token:hover {
+  background: rgba(244, 176, 7, 0.16);
+  border-color: var(--a-gold);
+  border-style: solid;
+  color: #8a6206;
+}
+.a-token.is-copied { background: rgba(47, 122, 62, 0.14); border-color: var(--a-green); color: var(--a-green); }
+
+/* --- inbox preview -------------------------------------------------- */
+.a-preview {
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius-sm);
+  overflow: hidden;
+  background: #f2ede4;
+}
+
+.a-preview__bar {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 1rem;
+  background: var(--a-card);
+  border-bottom: 1px solid var(--a-line);
+}
+.a-preview__from { font-size: 0.82rem; color: var(--a-muted); display: inline-flex; align-items: center; gap: 0.35rem; }
+.a-preview__subject { font-weight: 600; color: var(--a-ink); font-size: 0.95rem; }
+
+.a-preview__frame {
+  display: block;
+  width: 100%;
+  height: 620px;
+  border: 0;
+  background: #f2ede4;
+  margin: 0 auto;
+  transition: width 0.3s var(--a-ease);
+}
+.a-preview.is-phone .a-preview__frame {
+  width: 390px;
+  max-width: 100%;
+  height: 640px;
+  box-shadow: 0 0 0 1px var(--a-line);
+}
+.a-preview.is-loading .a-preview__frame { opacity: 0.45; }
+
+/* --- send progress --------------------------------------------------- */
+.a-progress__bar {
+  height: 12px;
+  border-radius: 999px;
+  background: #ece7dd;
+  overflow: hidden;
+}
+.a-progress__fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--a-gold-deep), var(--a-gold));
+  transition: width 0.4s var(--a-ease);
+}
+
+.a-progress__row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+}
+.a-progress__count { font-size: 0.92rem; color: var(--a-muted); }
+.a-progress__count strong { color: var(--a-ink); }
+.a-progress__split { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; }
+
+.a-progress__status {
+  margin: 0.7rem 0 0;
+  font-size: 0.88rem;
+  color: var(--a-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.a-progress__status.is-bad { color: var(--a-red); }
+.a-progress__status.is-done { color: var(--a-green); }
+
+@media (max-width: 640px) {
+  .a-preview__frame { height: 460px; }
+  .a-progress__split { margin-left: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

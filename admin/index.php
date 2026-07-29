@@ -119,6 +119,47 @@ if (trim(setting('google_maps_api_key')) === '') {
     ];
 }
 
+// --- outgoing email ---------------------------------------------------
+if ($mailProblems = mail_problems()) {
+    $todo[] = [
+        'text' => 'Outgoing email is not ready — ' . lcfirst(rtrim($mailProblems[0], '.'))
+                . ', so new subscribers get no welcome and campaigns cannot go out.',
+        'href' => 'settings.php#smtp',
+        'cta'  => 'Set up email',
+    ];
+} elseif (trim(setting('site_url')) === '') {
+    $todo[] = [
+        'text' => 'Your public website address is blank, so links and the logo inside emails point at whatever '
+                . 'address the admin panel was opened on. Set it before the first campaign.',
+        'href' => 'settings.php#smtp',
+        'cta'  => 'Set the address',
+    ];
+}
+
+if (!welcome_template()) {
+    $todo[] = [
+        'text' => 'No template is marked as the welcome email, so nobody joining the list hears back.',
+        'href' => 'templates.php',
+        'cta'  => 'Pick a welcome',
+    ];
+} elseif (setting('welcome_email_enabled', '1') !== '1') {
+    $todo[] = [
+        'text' => 'The automatic welcome email is switched off.',
+        'href' => 'settings.php#smtp',
+        'cta'  => 'Turn it on',
+    ];
+}
+
+$stalled = db_one("SELECT id, name FROM email_campaigns WHERE status = 'sending' ORDER BY id LIMIT 1");
+if ($stalled) {
+    $todo[] = [
+        'text' => '“' . $stalled['name'] . '” is part-way through sending. Open it and it carries on from '
+                . 'the first address still waiting.',
+        'href' => 'campaigns.php?id=' . (int)$stalled['id'],
+        'cta'  => 'Finish the send',
+    ];
+}
+
 if (count(order_links(true)) === 0) {
     $todo[] = [
         'text' => 'No ordering links are active — the Order Online page has nothing to send customers to.',

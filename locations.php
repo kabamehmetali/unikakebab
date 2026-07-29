@@ -73,6 +73,7 @@ $hero = [
     'crumb'    => 'Locations',
     'ornament' => false,      // it opens the content section below instead
     'compact'  => true,       // the address and map matter more than the banner
+    'flush'    => true,       // so that ornament sits evenly between the two
 ];
 require __DIR__ . '/includes/header.php';
 require __DIR__ . '/includes/hero.php';
@@ -161,7 +162,41 @@ require __DIR__ . '/includes/hero.php';
           <?php endif; ?>
         </div>
 
-        <div class="info-card mt-4" data-reveal data-reveal-delay="2">
+      </div>
+
+      <!-- ---------- contact cards + shop photo ---------- -->
+      <div class="col-lg-6">
+        <?php if (!empty($store['phone']) || !empty($store['email'])): ?>
+          <div class="row g-4">
+            <?php if (!empty($store['phone'])): ?>
+              <div class="col-sm-6" data-reveal data-reveal-delay="1">
+                <div class="info-card">
+                  <div class="info-card__icon"><i class="fa-solid fa-phone" aria-hidden="true"></i></div>
+                  <div class="info-card__label">Phone</div>
+                  <p class="info-card__value">
+                    <a href="<?= e(phone_href($store['phone'])) ?>"><?= e($store['phone']) ?></a>
+                  </p>
+                  <p class="info-card__note">Best for pickup orders and anything urgent.</p>
+                </div>
+              </div>
+            <?php endif; ?>
+
+            <?php if (!empty($store['email'])): ?>
+              <div class="col-sm-6" data-reveal data-reveal-delay="2">
+                <div class="info-card">
+                  <div class="info-card__icon"><i class="fa-solid fa-envelope" aria-hidden="true"></i></div>
+                  <div class="info-card__label">Email</div>
+                  <p class="info-card__value">
+                    <a href="mailto:<?= e($store['email']) ?>"><?= e($store['email']) ?></a>
+                  </p>
+                  <p class="info-card__note">Catering, large trays and party platters.</p>
+                </div>
+              </div>
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
+
+        <div class="info-card mt-4" data-reveal data-reveal-delay="3">
           <div class="info-card__icon"><i class="fa-regular fa-clock" aria-hidden="true"></i></div>
           <div class="info-card__label">Opening hours</div>
           <ul class="hours-list">
@@ -190,12 +225,8 @@ require __DIR__ . '/includes/hero.php';
           </p>
         </div>
 
-      </div>
-
-      <!-- ---------- photo + map ---------- -->
-      <div class="col-lg-6">
         <?php if (!empty($store['photo'])): ?>
-          <div class="media-frame media-frame--wide mb-4" data-reveal>
+          <div class="media-frame media-frame--wide mt-4" data-reveal>
             <img src="<?= e(img($store['photo'])) ?>"
                  alt="<?= e(trim($shopName . ' ' . $shopTagline)) ?> shopfront" loading="lazy">
             <span class="media-frame__outline" aria-hidden="true"></span>

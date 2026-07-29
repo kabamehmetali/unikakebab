@@ -14,6 +14,10 @@
     autoSlug();
     charCounters();
     submitGuard();
+    mirrorFields();
+    tokenChips();
+    emailPreview();
+    campaignSender();
   });
 
   /* --- mobile sidebar ----------------------------------------------- */
@@ -240,7 +244,6 @@
     table.querySelectorAll('tbody[data-sortable]').forEach(function (group) {
       var dragging = null;
       var before = null;       // the order before the drag, to undo a failed save
-      var handle = null;
 
       group.querySelectorAll('.a-drag').forEach(function (grip) {
         grip.addEventListener('pointerdown', start);
@@ -272,17 +275,19 @@
 
         e.preventDefault();
         dragging = row;
-        handle = e.currentTarget;
         before = ids();
 
         row.classList.add('is-dragging');
         group.classList.add('is-sorting');
         document.body.classList.add('a-dragging');
 
-        handle.setPointerCapture(e.pointerId);
-        handle.addEventListener('pointermove', move);
-        handle.addEventListener('pointerup', finish);
-        handle.addEventListener('pointercancel', finish);
+        // Deliberately not setPointerCapture on the handle: dragging moves the
+        // row — and the handle inside it — out of the DOM and back, and a
+        // capturing element that leaves the document loses the capture. The
+        // document sees every move regardless of what sits under the cursor.
+        document.addEventListener('pointermove', move);
+        document.addEventListener('pointerup', finish);
+        document.addEventListener('pointercancel', finish);
       }
 
       function move(e) {
@@ -307,9 +312,9 @@
         if (!dragging) return;
 
         var row = dragging;
-        handle.removeEventListener('pointermove', move);
-        handle.removeEventListener('pointerup', finish);
-        handle.removeEventListener('pointercancel', finish);
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', finish);
+        document.removeEventListener('pointercancel', finish);
 
         row.classList.remove('is-dragging');
         group.classList.remove('is-sorting');
@@ -468,6 +473,253 @@
       field.addEventListener('input', update);
       update();
     });
+  }
+
+  /* --- keep a hidden field in step with a visible one ----------------- *
+   * The "send a test copy" form sits outside the composer, so it carries  *
+   * hidden copies of the subject and body. They are filled in server-side *
+   * as well, which is what keeps the button working without JavaScript.   */
+  function mirrorFields() {
+    document.querySelectorAll('[data-mirror]').forEach(function (hidden) {
+      var source = document.querySelector(hidden.getAttribute('data-mirror'));
+      if (!source) return;
+
+      var copy = function () { hidden.value = source.value; };
+      source.addEventListener('input', copy);
+      source.addEventListener('change', copy);
+      copy();
+    });
+  }
+
+  /* --- placeholder chips --------------------------------------------- *
+   * Clicking {{first_name}} drops it wherever the cursor was last, which  *
+   * is nearly always inside the email body.                               */
+  function tokenChips() {
+    var chips = document.querySelectorAll('.a-token[data-token]');
+    if (!chips.length) return;
+
+    var fields = Array.prototype.slice.call(document.querySelectorAll('[data-tpl-field]'));
+    if (!fields.length) return;
+
+    // Default to the body — the biggest field, and the one people mean.
+    var target = fields.filter(function (f) { return f.tagName === 'TEXTAREA'; })[0] || fields[0];
+
+    fields.forEach(function (field) {
+      field.addEventListener('focus', function () { target = field; });
+    });
+
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        var token = chip.getAttribute('data-token');
+        var at = target.selectionStart;
+        var to = target.selectionEnd;
+
+        if (typeof at === 'number' && typeof to === 'number') {
+          target.value = target.value.slice(0, at) + token + target.value.slice(to);
+          target.selectionStart = target.selectionEnd = at + token.length;
+        } else {
+          target.value += token;
+        }
+
+        target.focus();
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+
+        chip.classList.add('is-copied');
+        setTimeout(function () { chip.classList.remove('is-copied'); }, 700);
+      });
+    });
+  }
+
+  /* --- live inbox preview --------------------------------------------- *
+   * The server owns the layout, so the preview asks the server rather than *
+   * trying to rebuild the email in the browser and getting it slightly     *
+   * wrong. The reply goes into a sandboxed iframe: nothing inside a        *
+   * preview can run, whatever HTML was pasted into the editor.             */
+  function emailPreview() {
+    var wrap = document.querySelector('.a-preview[data-preview-url]');
+    if (!wrap) return;
+
+    var frame = wrap.querySelector('.a-preview__frame');
+    var line = wrap.querySelector('.a-preview__subject');
+    var form = document.querySelector(wrap.getAttribute('data-preview-form') || '#tplForm, #campForm');
+    if (!frame || !form) return;
+
+    var url = wrap.getAttribute('data-preview-url');
+    var token = wrap.getAttribute('data-preview-token');
+    var wait = null;
+
+    function field(name) {
+      var input = form.querySelector('[name="' + name + '"]');
+      return input ? input.value : '';
+    }
+
+    function render() {
+      wrap.classList.add('is-loading');
+      if (line) line.textContent = field('subject') || 'Subject line';
+
+      var body = new FormData();
+      body.append('_csrf', token);
+      body.append('action', 'preview_html');
+      body.append('name', field('name'));
+      body.append('subject', field('subject'));
+      body.append('preheader', field('preheader'));
+      body.append('body_html', field('body_html'));
+
+      fetch(url, {
+        method: 'POST',
+        body: body,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+        .then(function (res) { return res.text(); })
+        .then(function (html) { frame.srcdoc = html; })
+        .catch(function () {
+          frame.srcdoc = '<p style="font:15px system-ui;padding:2rem;color:#9a2b02">'
+            + 'The preview could not be loaded. Save the page and try again.</p>';
+        })
+        .then(function () { wrap.classList.remove('is-loading'); });
+    }
+
+    // Typing redraws the preview, but only once the typing stops.
+    form.querySelectorAll('[data-tpl-field]').forEach(function (input) {
+      input.addEventListener('input', function () {
+        clearTimeout(wait);
+        wait = setTimeout(render, 900);
+      });
+    });
+
+    document.querySelectorAll('#tplRefresh, #campRefresh').forEach(function (btn) {
+      btn.addEventListener('click', render);
+    });
+
+    // Picking a template pours its wording into the composer.
+    var picker = form.querySelector('[data-template-picker]');
+    if (picker) {
+      picker.addEventListener('change', function () {
+        var option = picker.options[picker.selectedIndex];
+        if (!option || !option.value || option.value === '0') return;
+
+        ['subject', 'preheader', 'body_html'].forEach(function (name) {
+          var input = form.querySelector('[name="' + name + '"]');
+          var value = option.getAttribute('data-' + (name === 'body_html' ? 'body' : name));
+          if (input && value !== null) {
+            input.value = value;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+
+        render();
+      });
+    }
+
+    /* phone / desktop */
+    document.querySelectorAll('[data-preview-width]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        wrap.classList.toggle('is-phone', btn.getAttribute('data-preview-width') !== '0');
+      });
+    });
+
+    render();
+  }
+
+  /* --- work through a campaign, one batch at a time -------------------- *
+   * The page holds the loop rather than the server: a batch is one short   *
+   * request, so no single request can hit a time limit, and the numbers on *
+   * screen are the numbers in the database after every round.              */
+  function campaignSender() {
+    var box = document.getElementById('campProgress');
+    if (!box) return;
+
+    var url = box.getAttribute('data-send-url');
+    var id = box.getAttribute('data-campaign-id');
+    var token = box.getAttribute('data-token');
+
+    var fill = box.querySelector('.a-progress__fill');
+    var say = box.querySelector('[data-progress-message]');
+    var done = box.querySelector('[data-progress-done]');
+    var total = box.querySelector('[data-progress-total]');
+    var sent = box.querySelector('[data-progress-sent]');
+    var failed = box.querySelector('[data-progress-failed]');
+
+    // The plain "send the next batch" button is the no-JavaScript path.
+    // With JavaScript running it would only get in the way.
+    var manual = document.querySelector('[data-batch-fallback]');
+    var manualForm = manual ? manual.closest('form') : null;
+
+    if (box.getAttribute('data-autostart') !== '1') return;
+    if (manualForm) manualForm.style.display = 'none';
+
+    function paint(data) {
+      if (typeof data.total === 'number' && data.total > 0) {
+        var pct = Math.round(((data.sent + data.failed) / data.total) * 100);
+        if (fill) fill.style.width = pct + '%';
+        if (total) total.textContent = data.total;
+        if (done) done.textContent = data.sent + data.failed;
+      }
+      if (sent && typeof data.sent === 'number') sent.textContent = data.sent;
+      if (failed && typeof data.failed === 'number') failed.textContent = data.failed;
+    }
+
+    function status(text, state) {
+      if (!say) return;
+      say.className = 'a-progress__status' + (state ? ' is-' + state : '');
+      say.innerHTML = (state === 'bad'
+        ? '<i class="fa-solid fa-circle-exclamation"></i> '
+        : state === 'done'
+          ? '<i class="fa-solid fa-circle-check"></i> '
+          : '<i class="fa-solid fa-circle-notch fa-spin"></i> ') + escapeHtml(text);
+    }
+
+    function stop(message) {
+      status(message, 'bad');
+      if (manualForm) manualForm.style.display = '';   // let them retry by hand
+    }
+
+    function step() {
+      status('Sending…');
+
+      var body = new FormData();
+      body.append('_csrf', token);
+      body.append('action', 'send_batch');
+      body.append('id', id);
+
+      fetch(url, {
+        method: 'POST',
+        body: body,
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+        .then(function (res) {
+          return res.text().then(function (text) {
+            var data = null;
+            try { data = JSON.parse(text); } catch (err) { /* not JSON */ }
+            if (!data) throw new Error('The server sent back something unexpected. Reload the page to see where the send got to.');
+            return data;
+          });
+        })
+        .then(function (data) {
+          paint(data);
+
+          if (!data.ok) {
+            stop(data.message || 'The send stopped. Nobody was skipped — press the button to carry on.');
+            return;
+          }
+          if (data.done) {
+            status(data.message || 'Finished.', 'done');
+            // Reload once so the recipient table shows the final result.
+            setTimeout(function () { window.location.reload(); }, 1600);
+            return;
+          }
+
+          status(data.message || 'Sending…');
+          setTimeout(step, 400);
+        })
+        .catch(function (err) {
+          stop(err.message);
+        });
+    }
+
+    step();
   }
 
   /* --- stop accidental double submits ------------------------------- */

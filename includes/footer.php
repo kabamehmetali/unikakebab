@@ -107,11 +107,12 @@ $mapsUrl   = store_map_share_url('https://www.google.com/maps/search/?api=1&quer
           &copy; <span data-year><?= date('Y') ?></span> <?= e(setting('footer_copyright', $siteName . '. All rights reserved.')) ?>
         </div>
         <div class="col-md-5 text-md-end">
-          <a href="<?= e(url('menu.php')) ?>">Menu</a>
-          <span class="mx-2" aria-hidden="true">·</span>
-          <a href="<?= e(url('contact.php')) ?>">Contact</a>
-          <span class="mx-2" aria-hidden="true">·</span>
-          <a href="<?= e(admin_url('index.php')) ?>">Admin</a>
+          <span class="u-foot__credit">
+            Designed by
+            <a href="https://creativetorontonian.ca" target="_blank" rel="noopener noreferrer">
+              Creative Torontonian <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+            </a>
+          </span>
         </div>
       </div>
     </div>

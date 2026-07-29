@@ -47,6 +47,7 @@ if ($errors) {
 }
 
 $existing = db_one('SELECT id, is_active FROM subscribers WHERE email = ?', [$email]);
+$isNew    = false;
 
 if ($existing) {
     if ((int)$existing['is_active'] === 1) {
@@ -54,6 +55,7 @@ if ($existing) {
     } else {
         db_run('UPDATE subscribers SET is_active = 1, name = ? WHERE id = ?', [$name, (int)$existing['id']]);
         flash('Welcome back! You are subscribed again.', 'success');
+        $isNew = true;
     }
 } else {
     db_run(
@@ -61,6 +63,14 @@ if ($existing) {
         [$name, $email, client_ip()]
     );
     flash('You are on the list. Watch your inbox for the next special.', 'success');
+    $isNew = true;
+}
+
+// The welcome email goes out straight away, but it is never allowed to
+// break the sign-up: whoever just joined is on the list either way, and
+// the reason for a failure is waiting in Admin → Campaigns → Recent sends.
+if ($isNew) {
+    send_welcome_email(['name' => $name, 'email' => $email]);
 }
 
 redirect($back);

@@ -9,11 +9,17 @@
  * 'ornament' defaults to true; set it to false when the next section opens with
  * something of its own (the menu page starts with its category bar).
  * 'compact' draws a shallower banner so the content starts sooner.
+ * 'flush'   drops the minimum height so the banner ends right under its last
+ *           line — use it when the section below opens with an ornament, so the
+ *           flourish sits the same distance from the hero text as from the
+ *           content it introduces.
  */
 $hero = $hero ?? [];
 $heroImage = img($hero['image'] ?? 'assets/img/hero-home.jpg', 'assets/img/hero-home.jpg');
 $heroOrnament = $hero['ornament'] ?? true;
-$heroClass = 'hero hero--page' . (!empty($hero['compact']) ? ' hero--compact' : '');
+$heroClass = 'hero hero--page'
+           . (!empty($hero['compact']) ? ' hero--compact' : '')
+           . (!empty($hero['flush']) ? ' hero--flush' : '');
 ?>
 <section class="<?= e($heroClass) ?>">
   <div class="hero__bg" style="background-image:url('<?= e($heroImage) ?>')"></div>
