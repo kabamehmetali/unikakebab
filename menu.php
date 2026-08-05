@@ -6,6 +6,8 @@
  */
 require __DIR__ . '/includes/app.php';
 
+require_methods(['GET']);          // a read-only page; anything else is a 405
+
 $pageKey = 'menu';
 $breadcrumbs = [
     ['name' => 'Home', 'url' => 'index.php'],

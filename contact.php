@@ -4,6 +4,8 @@
  */
 require __DIR__ . '/includes/app.php';
 
+require_methods(['GET', 'POST']);   // the form posts back to this page
+
 $backTo = 'contact.php#contact-form';
 
 // =====================================================================

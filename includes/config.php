@@ -39,20 +39,38 @@ if (!defined('BASE_URL')) {
 }
 
 // ---- Error reporting ------------------------------------------------
-// Flip DEBUG_MODE to false before putting the site on a live server.
-define('DEBUG_MODE', true);
-if (DEBUG_MODE) {
-    error_reporting(E_ALL);
-    ini_set('display_errors', '1');
-} else {
-    error_reporting(0);
-    ini_set('display_errors', '0');
+// Debug mode follows the host rather than a flag somebody has to remember to
+// flip: a stack trace on a live page hands out file paths, table names and
+// occasionally credentials, and "flip this before deploying" is exactly the
+// line that gets missed. Set DEBUG_MODE yourself before this file loads if you
+// need to force it either way.
+if (!defined('DEBUG_MODE')) {
+    $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+    $host = (string)strtok($host, ':');                    // drop any :8080
+
+    define('DEBUG_MODE', $host === ''                       // command line
+        || $host === 'localhost'
+        || $host === '127.0.0.1'
+        || $host === '::1'
+        || substr($host, -6) === '.local'
+        || substr($host, -5) === '.test');
 }
+
+// Errors are always collected — includes/errors.php turns them into a 500 and
+// a log line. Only whether they are printed at the visitor changes.
+error_reporting(E_ALL);
+ini_set('display_errors', DEBUG_MODE ? '1' : '0');
+ini_set('log_errors', '1');
 
 date_default_timezone_set('America/Toronto');
 
 // ---- Session --------------------------------------------------------
-if (session_status() === PHP_SESSION_NONE) {
+// robots.txt, sitemap.xml and the manifest declare APP_STATELESS before they
+// bootstrap. They have no forms, no flash messages and no visitor to remember,
+// and a session would hand every crawler a Set-Cookie header plus PHP's
+// automatic "Cache-Control: no-store" — telling Google not to keep the two
+// files it is meant to keep longest.
+if (!defined('APP_STATELESS') && session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax']);
     session_start();
 }

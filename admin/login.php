@@ -123,6 +123,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ---------------------------------------------------------------------
 $locked      = login_lock_seconds();
 $lockMinutes = $locked > 0 ? max(1, (int)ceil($locked / 60)) : 0;
+
+// A locked form is still the friendliest thing to show — it says how long is
+// left and keeps the layout — but the response has to say so too, or an
+// automated client reads a 200 and simply keeps trying.
+if ($locked > 0 && !headers_sent()) {
+    http_response_code(429);
+    header('Retry-After: ' . $locked);
+}
+
 $messages    = flash_take();
 $siteName    = setting('site_name', 'Unika Kebab');
 $tagline     = setting('site_tagline', 'Charcoal Grill');
@@ -137,14 +146,15 @@ $recaptchaSiteKey = setting('google_recaptcha_site_key');
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign in · <?= e($siteName) ?> Admin</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="icon" href="<?= e(img(setting('favicon', 'assets/img/favicon.png'), 'assets/img/favicon.png')) ?>">
+<link rel="icon" href="<?= e(site_icon('ico')) ?>" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="<?= e(site_icon('favicon-32')) ?>">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap-grid.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-<link href="<?= e(admin_url('assets/css/admin.css')) ?>" rel="stylesheet">
+<link href="<?= e(asset('admin/assets/css/admin.css')) ?>" rel="stylesheet">
 <?php if ($recaptchaEnabled): ?>
 <script src="https://www.google.com/recaptcha/api.js?render=<?= e(rawurlencode($recaptchaSiteKey)) ?>" async defer></script>
 <?php endif; ?>
@@ -263,6 +273,6 @@ $recaptchaSiteKey = setting('google_recaptcha_site_key');
   </div>
 </main>
 
-<script src="<?= e(admin_url('assets/js/admin.js')) ?>"></script>
+<script src="<?= e(asset('admin/assets/js/admin.js')) ?>"></script>
 </body>
 </html>

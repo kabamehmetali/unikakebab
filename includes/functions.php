@@ -85,6 +85,110 @@ function site_base_url(): string
     return ($https ? 'https://' : 'http://') . $host . BASE_URL;
 }
 
+/** Scheme and host this particular request arrived on — "https://unikakebab.ca". */
+function request_origin(): string
+{
+    $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '') {
+        return '';
+    }
+
+    $https = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off')
+          || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https')
+          || (int)($_SERVER['SERVER_PORT'] ?? 0) === 443;
+
+    return ($https ? 'https://' : 'http://') . $host;
+}
+
+/**
+ * Send every visitor to the one address the site calls its own.
+ *
+ * Without this, https://unikakebab.ca, http://unikakebab.ca and
+ * https://www.unikakebab.ca are three sites as far as a search engine is
+ * concerned, each with its own copy of every page. The canonical tag is only
+ * a hint; a 301 is the answer.
+ *
+ * The target is the site_url setting, which is also what builds every
+ * canonical, og:url and sitemap entry — so the redirect and the tags can never
+ * disagree, however the admin later changes it. Nothing happens until that
+ * setting is filled in, so a local XAMPP install is untouched.
+ */
+function canonical_host_redirect(): void
+{
+    if (defined('APP_NO_REDIRECT')) {
+        return;                      // an error page answers; it does not redirect
+    }
+    if (!in_array(strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')), ['GET', 'HEAD'], true)) {
+        return;                      // a 301 would throw a form submission away
+    }
+
+    $configured = trim(setting('site_url'));
+    if ($configured === '') {
+        return;                      // no public address set; nothing to be canonical about
+    }
+
+    $wanted = preg_replace('#^(https?://[^/]+).*$#i', '$1', rtrim($configured, '/'));
+    $host   = strtolower((string)parse_url((string)$wanted, PHP_URL_HOST));
+
+    // A development address is never worth redirecting to, and getting this
+    // wrong on a live server would take the site off the internet.
+    if ($wanted === '' || $host === '' || $host === 'localhost'
+        || filter_var($host, FILTER_VALIDATE_IP) !== false
+        || substr($host, -6) === '.local' || substr($host, -5) === '.test') {
+        return;
+    }
+
+    $current = request_origin();
+    if ($current === '' || strcasecmp($current, (string)$wanted) === 0) {
+        return;
+    }
+
+    header('Location: ' . $wanted . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+    exit;
+}
+
+/**
+ * One spelling per page.
+ *
+ * macOS and Windows both serve /Menu, /MENU and /menu as the same file with a
+ * 200, so a single stray capital in one inbound link quietly creates a second
+ * copy of the page. (On a case-sensitive Linux host those addresses 404
+ * instead, which is its own kind of broken for anyone following the link.)
+ * Every URL this site generates is lower case, so anything else is redirected
+ * to the spelling the canonical tag already claims.
+ *
+ * Runs after canonical_host_redirect() so the two never fight over the same
+ * request: the host is settled first, then the path.
+ */
+function canonical_path_redirect(): void
+{
+    if (defined('APP_NO_REDIRECT')) {
+        return;
+    }
+    if (!in_array(strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')), ['GET', 'HEAD'], true)) {
+        return;
+    }
+
+    $uri  = (string)($_SERVER['REQUEST_URI'] ?? '');
+    $cut  = strcspn($uri, '?#');
+    $path = substr($uri, 0, $cut);
+    $rest = substr($uri, $cut);
+
+    $lower = strtolower($path);
+    if ($lower === $path) {
+        return;
+    }
+
+    // Uploaded files keep whatever name they were given, so their case is not
+    // ours to correct — and they are served by Apache without reaching PHP.
+    if (stripos($path, '/' . UPLOAD_URL . '/') !== false) {
+        return;
+    }
+
+    header('Location: ' . $lower . $rest, true, 301);
+    exit;
+}
+
 /** url(), but absolute. */
 function abs_url(string $path = ''): string
 {
@@ -101,6 +205,32 @@ function abs_url(string $path = ''): string
     }
 
     return $base . '/' . ltrim(clean_path($path), '/');
+}
+
+/**
+ * URL for a file we ship ourselves, stamped with the time it last changed.
+ *
+ * Stylesheets, scripts and icons are all cached hard by .htaccess — a year,
+ * marked immutable — which is only safe while the address changes whenever the
+ * file does. Favicons in particular are cached far more stubbornly than
+ * anything else on a page, and a stamped URL is the only reliable way to get a
+ * new one in front of somebody who has already seen the old one.
+ */
+function asset(string $path): string
+{
+    $full = APP_ROOT . '/' . ltrim($path, '/');
+    $url  = url($path);
+
+    if (!is_file($full)) {
+        return $url;
+    }
+
+    $stamp = @filemtime($full);
+    if ($stamp === false) {
+        return $url;
+    }
+
+    return $url . (strpos($url, '?') === false ? '?' : '&') . 'v=' . $stamp;
 }
 
 /**
@@ -268,6 +398,10 @@ function seo_pages(): array
             'file' => 'contact.php', 'label' => 'Contact Us',
             'priority' => '0.7', 'changefreq' => 'monthly', 'public' => true,
         ],
+        'join' => [
+            'file' => 'join.php', 'label' => 'Join the newsletter',
+            'priority' => '0.5', 'changefreq' => 'yearly', 'public' => true,
+        ],
         'subscribe' => [
             'file' => 'subscribe.php', 'label' => 'Newsletter (subscribe)',
             'priority' => '0.1', 'changefreq' => 'yearly', 'public' => false,
@@ -330,13 +464,26 @@ function page_meta(string $page): array
     $siteName = setting('site_name', 'Unika Kebab');
     $suffix   = setting('seo_title_suffix', '');
 
+    // A blank title suffix used to collapse every page onto the site name —
+    // five pages, one identical <title>, which is the single strongest signal
+    // a site can send that its pages are duplicates of each other. The label
+    // always leads now; the suffix is only ever an addition.
     $title = setting("meta_{$page}_title", '');
     if ($title === '') {
         $label = $pages[$page]['label'] ?? $siteName;
-        $title = ($page === 'home' || $suffix === '') ? $siteName : $label . ' | ' . $suffix;
+        $tail  = $suffix !== '' ? $suffix : $siteName;
+
+        $title = ($page === 'home')
+            ? ($suffix !== '' ? $siteName . ' | ' . $suffix : $siteName)
+            : $label . ' | ' . $tail;
     }
 
-    $desc      = setting("meta_{$page}_desc", '');
+    // An empty description is not neutral: Google writes its own from whatever
+    // text it finds first, which on this site is the navigation.
+    $desc = setting("meta_{$page}_desc", '');
+    if (trim($desc) === '') {
+        $desc = setting('footer_about', '');
+    }
     $canonical = trim(setting("meta_{$page}_canonical", ''));
     $ogImage   = trim(setting("meta_{$page}_og_image", ''));
 
@@ -413,6 +560,81 @@ function seo_opening_hours(): array
 }
 
 /**
+ * The live menu as a schema.org Menu — sections, dishes, prices and the
+ * vegetarian and spicy flags.
+ *
+ * Only the categories and items that are actually visible go in; advertising a
+ * dish in structured data that a visitor cannot find on the page is the kind of
+ * mismatch that gets a rich result withdrawn rather than shown.
+ *
+ * Returns null when there is nothing live to describe.
+ */
+function seo_menu_graph(string $home): ?array
+{
+    $sections = [];
+
+    foreach (menu_categories() as $category) {
+        $items = menu_items((int)$category['id']);
+        if (!$items) {
+            continue;
+        }
+
+        $listed = [];
+        foreach ($items as $item) {
+            $entry = array_filter([
+                '@type'       => 'MenuItem',
+                'name'        => (string)$item['name'],
+                'description' => trim((string)($item['description'] ?? '')),
+                'image'       => !empty($item['image']) ? abs_media($item['image']) : null,
+            ], static fn($v): bool => $v !== null && $v !== '');
+
+            // A price of nothing is not a price of zero — items priced in store
+            // simply carry no offer.
+            if ($item['price'] !== null && $item['price'] !== '') {
+                $entry['offers'] = [
+                    '@type'         => 'Offer',
+                    'price'         => number_format((float)$item['price'], 2, '.', ''),
+                    'priceCurrency' => setting('seo_currency', 'CAD'),
+                    'availability'  => 'https://schema.org/InStock',
+                ];
+            }
+
+            // schema.org has a vocabulary for diets but none for heat, so the
+            // spicy flag stays on the page where a human can read it.
+            if (!empty($item['is_vegetarian'])) {
+                $entry['suitableForDiet'] = ['https://schema.org/VegetarianDiet'];
+            }
+
+            $listed[] = $entry;
+        }
+
+        if (!$listed) {
+            continue;
+        }
+
+        $sections[] = array_filter([
+            '@type'          => 'MenuSection',
+            'name'           => (string)$category['name'],
+            'description'    => trim((string)($category['description'] ?? '')),
+            'hasMenuItem'    => $listed,
+        ], static fn($v): bool => $v !== null && $v !== '' && $v !== []);
+    }
+
+    if (!$sections) {
+        return null;
+    }
+
+    return [
+        '@type'          => 'Menu',
+        '@id'            => abs_url('menu.php') . '#menu',
+        'name'           => setting('site_name', 'Unika Kebab') . ' menu',
+        'url'            => abs_url('menu.php'),
+        'inLanguage'     => str_replace('_', '-', setting('seo_locale', 'en_CA')),
+        'hasMenuSection' => $sections,
+    ];
+}
+
+/**
  * The JSON-LD graph for a page: the restaurant itself, the website, the page
  * being viewed and — when the page supplies them — a breadcrumb trail.
  *
@@ -483,13 +705,25 @@ function seo_structured_data(string $pageKey, array $meta, array $breadcrumbs = 
             'isPartOf'   => ['@id' => $siteId],
             'about'      => ['@id' => $orgId],
             'primaryImageOfPage' => ['@type' => 'ImageObject', 'url' => $meta['og_image']],
-            'author'     => [
-                '@type' => 'Person',
-                'name'  => setting('seo_author', 'Mehmet Ali KABA'),
-            ],
+            // The restaurant publishes its own menu. Naming the developer as
+            // the author of a page about kebabs is not a credit anybody wants,
+            // and it hands Google an entity that has nothing to do with the
+            // business it is trying to understand.
+            'publisher'  => ['@id' => $orgId],
             'inLanguage' => str_replace('_', '-', setting('seo_locale', 'en_CA')),
         ]),
     ];
+
+    // The menu page prints every dish, description and price in HTML and said
+    // nothing about any of it in machine-readable form. Restaurant results are
+    // one of the few places Google still shows a genuinely rich card, and it
+    // wants a Menu to build one from.
+    if ($pageKey === 'menu') {
+        $menu = seo_menu_graph($home);
+        if ($menu !== null) {
+            $graph[] = $menu;
+        }
+    }
 
     if ($breadcrumbs) {
         $graph[] = [
@@ -915,8 +1149,7 @@ function csrf_require(): void
 {
     if (!csrf_verify()) {
         // 403 rather than 419 — Apache re-maps unknown status codes to a 500.
-        http_response_code(403);
-        exit('Your session expired. Please go back, reload the page and try again.');
+        render_error_page(403, ['log' => 'CSRF check failed on ' . ($_SERVER['REQUEST_URI'] ?? '')]);
     }
 }
 

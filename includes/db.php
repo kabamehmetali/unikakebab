@@ -22,6 +22,21 @@ function db(): PDO
                   . htmlspecialchars($e->getMessage())
                   . "\n\nRun:  mysql -u root &lt; sql/schema.sql</pre>");
             }
+
+            // 503, never 200. An outage answered with "Service temporarily
+            // unavailable" and a success status reads to a crawler as a page
+            // whose entire content is that sentence — and it will replace the
+            // real page in the index with it. 503 with Retry-After says "come
+            // back, keep what you have", which is what is actually true.
+            error_log('Database connection failed: ' . $e->getMessage());
+
+            if (function_exists('render_error_page')) {
+                render_error_page(503, ['retry' => 120]);
+            }
+
+            // Only reachable if this file is used outside the normal bootstrap.
+            http_response_code(503);
+            header('Retry-After: 120');
             die('Service temporarily unavailable.');
         }
     }

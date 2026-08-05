@@ -1,6 +1,8 @@
 <?php
 require __DIR__ . '/includes/app.php';
 
+require_methods(['GET']);          // a read-only page; anything else is a 405
+
 $store   = store();
 $links   = order_links();
 $address = store_address();

@@ -127,13 +127,6 @@ if ($mailProblems = mail_problems()) {
         'href' => 'settings.php#smtp',
         'cta'  => 'Set up email',
     ];
-} elseif (trim(setting('site_url')) === '') {
-    $todo[] = [
-        'text' => 'Your public website address is blank, so links and the logo inside emails point at whatever '
-                . 'address the admin panel was opened on. Set it before the first campaign.',
-        'href' => 'settings.php#smtp',
-        'cta'  => 'Set the address',
-    ];
 }
 
 if (!welcome_template()) {
@@ -150,6 +143,21 @@ if (!welcome_template()) {
     ];
 }
 
+// Nothing on this list matters more. With no public web address configured,
+// robots.php cannot tell a live site from a staging copy, so it plays safe and
+// serves "Disallow: /" — the whole site, blocked from every search engine.
+// Canonical tags and the sitemap fall back to whatever host answered the
+// request, which on a shared server is not necessarily the right one either.
+if (trim(setting('site_url')) === '') {
+    $todo[] = [
+        'text' => 'Your public web address is not set, so the site is telling Google and Bing not to index '
+                . 'any of it. Nothing here will appear in search results until you fill it in — and links '
+                . 'inside your campaign emails point at whatever address the admin panel was opened on.',
+        'href' => 'settings.php#site_url',
+        'cta'  => 'Set the address',
+    ];
+}
+
 $stalled = db_one("SELECT id, name FROM email_campaigns WHERE status = 'sending' ORDER BY id LIMIT 1");
 if ($stalled) {
     $todo[] = [
@@ -163,7 +171,7 @@ if ($stalled) {
 if (count(order_links(true)) === 0) {
     $todo[] = [
         'text' => 'No ordering links are active — the Order Online page has nothing to send customers to.',
-        'href' => 'home.php',
+        'href' => 'order-links.php',
         'cta'  => 'Add a link',
     ];
 }

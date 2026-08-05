@@ -335,6 +335,73 @@ a:hover { color: var(--a-red); }
 .a-table tr.is-unread:hover { background: rgba(244, 176, 7, 0.11); }
 .a-table tr.is-off td:not(.is-actions) { opacity: 0.55; }
 
+/* --- returning from the item editor --------------------------------- */
+/* The topbar is sticky, so a row jumped to by anchor would land under it. */
+.a-table tbody tr[id] { scroll-margin-top: 6.5rem; }
+
+.a-table tbody tr.is-returned {
+  animation: a-returned 2.4s var(--a-ease);
+}
+@keyframes a-returned {
+  0%, 55% { background: rgba(244, 176, 7, 0.28); }
+  100%    { background: transparent; }
+}
+
+.a-backlink { margin: 0 0 1.1rem; font-size: 0.9rem; }
+.a-backlink a { color: var(--a-muted); text-decoration: none; }
+.a-backlink a:hover { color: var(--a-ink); }
+.a-backlink i { margin-right: 0.4rem; }
+
+/* The editor is a long form; the save row follows you down it. */
+.a-card__foot--sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: #fff;
+  border-top: 1px solid var(--a-line);
+  box-shadow: 0 -8px 20px rgba(18, 16, 14, 0.05);
+}
+
+.a-rule { border: 0; border-top: 1px solid var(--a-line); margin: 1.75rem 0 1.5rem; }
+
+/* --- copy to clipboard ----------------------------------------------- */
+.a-copy { display: flex; gap: 0.5rem; align-items: stretch; flex-wrap: wrap; }
+.a-copy .a-input { flex: 1 1 16rem; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+.a-btn.is-copied { background: var(--a-green); border-color: var(--a-green); color: #fff; }
+.a-btn.is-copy-failed { background: var(--a-red); border-color: var(--a-red); color: #fff; }
+
+/* --- order-online links --------------------------------------------- */
+.a-order-move {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 2.6rem;
+}
+.a-order-move form { display: block; }
+.a-order-move .a-btn[disabled] { opacity: 0.3; pointer-events: none; }
+
+/* Platform marks arrive as an <i> or an inline <svg>; one box holds either. */
+.a-order-mark {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--a-bg);
+  border: 1px solid var(--a-line);
+  font-size: 1.05rem;
+}
+.a-order-mark svg { width: 22px; height: 22px; }
+
+.a-order-url {
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
 /* --- drag to reorder ------------------------------------------------ */
 .a-table__group td {
   background: #faf7f1;

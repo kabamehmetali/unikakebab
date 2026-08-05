@@ -126,9 +126,9 @@ $mapsUrl   = store_map_share_url('https://www.google.com/maps/search/?api=1&quer
 </button>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<?= e(url('assets/js/main.js')) ?>"></script>
+<script src="<?= e(asset('assets/js/main.js')) ?>"></script>
 <?php if (!empty($pageJs) && file_exists(APP_ROOT . '/assets/js/' . $pageJs)): ?>
-<script src="<?= e(url('assets/js/' . $pageJs)) ?>"></script>
+<script src="<?= e(asset('assets/js/' . $pageJs)) ?>"></script>
 <?php endif; ?>
 </body>
 </html>

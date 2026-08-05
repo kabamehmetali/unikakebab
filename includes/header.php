@@ -7,6 +7,7 @@
  *   $bodyClass string  optional extra class on <body>
  *   $pageCss   string  optional stylesheet name inside assets/css/pages/
  *   $noIndex   bool    keep the page out of search results
+ *   $titleOverride string  a title the settings table has no entry for
  */
 
 $pageKey   = $pageKey   ?? 'home';
@@ -15,6 +16,12 @@ $pageCss   = $pageCss   ?? '';
 $noIndex   = $noIndex   ?? false;
 
 $meta      = page_meta($pageKey);
+
+// Error pages borrow the home page's shell but must not borrow its title.
+if (isset($titleOverride) && trim((string)$titleOverride) !== '') {
+    $meta['title']    = (string)$titleOverride;
+    $meta['og_title'] = (string)$titleOverride;
+}
 $siteName  = setting('site_name', 'Unika Kebab');
 $tagline   = setting('site_tagline', 'Charcoal Grill');
 $storeRow  = store();
@@ -46,10 +53,15 @@ $breadcrumbs = $breadcrumbs ?? [];
 <meta name="googlebot" content="<?= e($robots) ?>">
 <meta name="theme-color" content="#12100e">
 <meta name="format-detection" content="telephone=no">
+<?php if (!$noIndex): ?>
 <link rel="canonical" href="<?= e($meta['canonical']) ?>">
+<?php endif; ?>
 
 <!-- Open Graph -->
-<meta property="og:type" content="<?= $pageKey === 'home' ? 'website' : 'article' ?>">
+<?php /* "article" is for a piece of writing with an author and a date. A menu,
+         a contact page and an ordering page are none of those, and mislabelling
+         them costs the richer treatment Facebook gives a business page. */ ?>
+<meta property="og:type" content="website">
 <meta property="og:site_name" content="<?= e($siteName) ?>">
 <meta property="og:locale" content="<?= e(setting('seo_locale', 'en_CA')) ?>">
 <meta property="og:url" content="<?= e($meta['canonical']) ?>">
@@ -97,8 +109,21 @@ $breadcrumbs = $breadcrumbs ?? [];
 <meta name="p:domain_verify" content="<?= e(setting('seo_pinterest_verification')) ?>">
 <?php endif; ?>
 
-<link rel="icon" href="<?= e(img(setting('favicon', 'assets/img/favicon.png'), 'assets/img/favicon.png')) ?>">
-<link rel="apple-touch-icon" href="<?= e(img(setting('favicon', 'assets/img/favicon.png'), 'assets/img/favicon.png')) ?>">
+<?php $icons = site_icons(); ?>
+<!-- Icons. Google only reads a favicon it can fetch, that is square and whose
+     side is a multiple of 48, so the 48px file is the one declared for it. -->
+<link rel="icon" href="<?= e($icons['ico']) ?>" sizes="any">
+<link rel="icon" type="image/png" sizes="16x16" href="<?= e($icons['favicon-16']) ?>">
+<link rel="icon" type="image/png" sizes="32x32" href="<?= e($icons['favicon-32']) ?>">
+<link rel="icon" type="image/png" sizes="48x48" href="<?= e($icons['favicon-48']) ?>">
+<link rel="icon" type="image/png" sizes="96x96" href="<?= e($icons['favicon-96']) ?>">
+<link rel="icon" type="image/png" sizes="192x192" href="<?= e($icons['favicon-192']) ?>">
+<link rel="apple-touch-icon" sizes="180x180" href="<?= e($icons['apple-touch']) ?>">
+<link rel="manifest" href="<?= e(url('site.webmanifest')) ?>">
+<meta name="apple-mobile-web-app-title" content="<?= e(setting('site_short_name', $siteName)) ?>">
+<meta name="application-name" content="<?= e(setting('site_short_name', $siteName)) ?>">
+<meta name="msapplication-TileColor" content="#12100e">
+<meta name="msapplication-TileImage" content="<?= e($icons['favicon-192']) ?>">
 <?php if (setting('seo_sitemap_enabled', '1') === '1'): ?>
 <link rel="sitemap" type="application/xml" title="Sitemap" href="<?= e(url('sitemap.xml')) ?>">
 <?php endif; ?>
@@ -109,9 +134,9 @@ $breadcrumbs = $breadcrumbs ?? [];
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-<link href="<?= e(url('assets/css/style.css')) ?>" rel="stylesheet">
+<link href="<?= e(asset('assets/css/style.css')) ?>" rel="stylesheet">
 <?php if ($pageCss !== '' && file_exists(APP_ROOT . '/assets/css/pages/' . $pageCss)): ?>
-<link href="<?= e(url('assets/css/pages/' . $pageCss)) ?>" rel="stylesheet">
+<link href="<?= e(asset('assets/css/pages/' . $pageCss)) ?>" rel="stylesheet">
 <?php endif; ?>
 
 <script type="application/ld+json">

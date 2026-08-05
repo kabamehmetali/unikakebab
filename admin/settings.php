@@ -21,6 +21,7 @@ const META_PAGES = [
     'contact'     => ['Contact page', 'fa-solid fa-envelope'],
     'locations'   => ['Locations page', 'fa-solid fa-location-dot'],
     'order'       => ['Order online page', 'fa-solid fa-bag-shopping'],
+    'join'        => ['Newsletter landing page', 'fa-solid fa-envelope-open-text'],
     'subscribe'   => ['Newsletter sign-up', 'fa-solid fa-envelope-open-text'],
     'unsubscribe' => ['Unsubscribe page', 'fa-solid fa-envelope-circle-check'],
 ];
@@ -242,7 +243,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Brand images.
     $uploadErrors = [];
-    foreach (['logo' => 'logo', 'footer_logo' => 'footer-logo', 'favicon' => 'favicon', 'og_image' => 'share'] as $field => $prefix) {
+
+    // The favicon is not one image but a set — .ico, six square PNGs, an
+    // opaque iOS icon and a maskable one — so it is built by its own handler
+    // rather than dropped through save_upload()'s WebP conversion, which
+    // Google's favicon crawler cannot read.
+    $iconError = null;
+    $iconSet   = save_icon_upload($_FILES['favicon'] ?? [], $iconError);
+
+    if ($iconError !== null) {
+        $uploadErrors[] = 'Favicon: ' . $iconError;
+    } elseif ($iconSet !== null) {
+        delete_icon_set(setting('favicon_set', ''));
+        delete_upload(setting('favicon', ''));      // clear out any single-file icon
+        $values['favicon_set'] = $iconSet;
+        $values['favicon']     = '';
+    }
+
+    foreach (['logo' => 'logo', 'footer_logo' => 'footer-logo', 'og_image' => 'share'] as $field => $prefix) {
         $error    = null;
         $uploaded = save_upload($_FILES[$field] ?? [], 'site', $prefix, $error);
 
@@ -411,10 +429,14 @@ require __DIR__ . '/includes/header.php';
           <div class="a-field">
             <span class="a-field__label">Favicon</span>
             <div class="a-media">
-              <img class="a-media__preview" id="favPreview" src="<?= e(img(setting('favicon'))) ?>" alt="" width="104" height="104">
+              <img class="a-media__preview" id="favPreview" src="<?= e(site_icon('favicon-192')) ?>" alt="" width="104" height="104">
               <div class="a-media__body">
-                <input type="file" name="favicon" accept="image/*" data-preview="#favPreview">
-                <p class="a-field__hint">The small icon in the browser tab. Square, at least 180×180.</p>
+                <input type="file" name="favicon" accept="image/jpeg,image/png,image/gif,image/webp" data-preview="#favPreview">
+                <p class="a-field__hint">
+                  The icon in the browser tab, on a phone&rsquo;s home screen and beside the site in Google results.
+                  Upload one <strong>square</strong> image, at least 180&times;180 &mdash; the .ico, the six PNG sizes and
+                  the iOS icon are all cut from it for you.
+                </p>
               </div>
             </div>
           </div>

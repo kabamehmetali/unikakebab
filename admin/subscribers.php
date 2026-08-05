@@ -223,6 +223,57 @@ require __DIR__ . '/includes/header.php';
 
 <div class="a-mt"></div>
 
+<!-- ======================= share the sign-up ======================= -->
+<?php
+// Absolute, because the whole point of this box is that the address leaves
+// the admin panel — a site-relative link is useless in an Instagram bio.
+$joinUrl = abs_url('join.php');
+?>
+<div class="a-card">
+  <div class="a-card__head">
+    <div>
+      <h2 class="a-card__title"><i class="fa-solid fa-share-nodes"></i>Share the sign-up page</h2>
+      <p class="a-card__sub">One link that opens straight on the join form — nothing else to scroll past</p>
+    </div>
+    <div class="a-card__actions">
+      <a class="a-btn a-btn--ghost a-btn--sm" href="<?= e(url('join.php')) ?>" target="_blank" rel="noopener">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> <span class="d-none d-sm-inline">Preview</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="a-card__body">
+    <div class="a-copy">
+      <label class="visually-hidden" for="joinLink">Sign-up page link</label>
+      <input class="a-input" type="text" id="joinLink" value="<?= e($joinUrl) ?>" readonly
+             onfocus="this.select()" spellcheck="false">
+      <button class="a-btn a-btn--dark" type="button" data-copy="#joinLink">
+        <i class="fa-solid fa-copy"></i> Copy link
+      </button>
+    </div>
+
+    <p class="a-field__hint a-mt">
+      Paste it in an Instagram or TikTok bio, a WhatsApp broadcast, or turn it into a QR code for
+      a table card and the counter. Everyone who signs up lands in the list below and gets the
+      welcome email.
+      <?php if (trim(setting('site_url')) === ''): ?>
+        <br>
+        <strong>This link currently points at <?= e(parse_url($joinUrl, PHP_URL_HOST) ?: 'this server') ?>.</strong>
+        Set your public web address under
+        <a href="<?= e(admin_url('settings.php')) ?>">Settings &rarr; SEO</a> and it will read as your real
+        domain everywhere it is used.
+      <?php endif; ?>
+    </p>
+
+    <p class="a-field__hint">
+      The photo and wording on that page are edited under
+      <a href="<?= e(admin_url('home.php')) ?>">Home Page &rarr; Newsletter band</a>.
+    </p>
+  </div>
+</div>
+
+<div class="a-mt"></div>
+
 <!-- ============================= list ============================= -->
 <div class="a-card">
   <div class="a-card__head">

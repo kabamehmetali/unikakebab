@@ -44,6 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'home_cta_btn_text', 'home_cta_btn_link',
             // newsletter band
             'newsletter_eyebrow', 'newsletter_title', 'newsletter_text', 'newsletter_btn_text',
+            // the shareable /join landing page
+            'newsletter_share_title', 'newsletter_share_text', 'newsletter_image_alt',
             // alt text for the two photos below — saved whether or not a new
             // file was picked, so the wording can be fixed on its own
             'hero_image_alt', 'home_about_image_alt',
@@ -62,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $photos   = [
             ['field' => 'hero_image',       'prefix' => 'hero',  'label' => 'Hero photo'],
             ['field' => 'home_about_image', 'prefix' => 'about', 'label' => 'Story photo'],
+            ['field' => 'newsletter_image',  'prefix' => 'join',  'label' => 'Sign-up page photo'],
         ];
 
         foreach ($photos as $photo) {
@@ -657,6 +660,60 @@ require __DIR__ . '/includes/header.php';
     );
 
     home_field_text('newsletter_btn_text', 'Button label', 'Join the list', '', true);
+    ?>
+
+    <hr class="a-rule">
+
+    <div class="a-field">
+      <span class="a-field__label">The shareable sign-up page</span>
+      <p class="a-field__hint">
+        Everything below is the standalone page at
+        <a href="<?= e(url('join.php')) ?>" target="_blank" rel="noopener"><?= e(abs_url('join.php')) ?></a> —
+        the one you paste into an Instagram bio or print on a table card.
+        The link and a copy button live on
+        <a href="<?= e(admin_url('subscribers.php')) ?>">Subscribers</a>.
+      </p>
+    </div>
+
+    <div class="a-field">
+      <span class="a-field__label">Photo</span>
+      <div class="a-media">
+        <img class="a-media__preview" id="joinPreview"
+             src="<?= e(img(setting('newsletter_image'), 'assets/img/hero-home.jpg')) ?>"
+             alt="Current sign-up page photo" width="104" height="104">
+        <div class="a-media__body">
+          <input type="file" name="newsletter_image" form="homeContentForm"
+                 accept="image/jpeg,image/png,image/gif,image/webp" data-preview="#joinPreview">
+          <p class="a-field__hint">
+            The full-width photo behind the sign-up card. A wide, appetising shot works best —
+            the card sits over the middle of it.
+          </p>
+
+          <label class="a-field__label a-field__label--sub" for="newsletter_image_alt">Alt text</label>
+          <input class="a-input a-input--sm" type="text" id="newsletter_image_alt" name="newsletter_image_alt"
+                 form="homeContentForm" maxlength="255" value="<?= e(setting('newsletter_image_alt')) ?>"
+                 placeholder="Charcoal-grilled skewers at <?= e(setting('site_name', 'Unika Kebab')) ?>">
+        </div>
+      </div>
+    </div>
+
+    <?php
+    home_field_text(
+        'newsletter_share_title',
+        'Sign-up page headline',
+        'Specials before anyone else',
+        'Leave blank to reuse the band title above.',
+        true
+    );
+
+    home_field_area(
+        'newsletter_share_text',
+        'Sign-up page text',
+        'One short email a month: new skewers, seasonal plates and the occasional free baklava.',
+        'Leave blank to reuse the band text above.',
+        false,
+        true
+    );
     ?>
 
     <div class="a-sticky-save">

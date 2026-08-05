@@ -18,6 +18,8 @@
     tokenChips();
     emailPreview();
     campaignSender();
+    rememberScroll();
+    copyButtons();
   });
 
   /* --- mobile sidebar ----------------------------------------------- */
@@ -720,6 +722,89 @@
     }
 
     step();
+  }
+
+
+  /* --- come back to where you were ----------------------------------
+     Editing a menu item happens on its own page. Returning to the list
+     should land on the row you left, not at the top of it.
+
+     The anchor in the return URL does the real work: the row keeps its
+     id whatever the list is filtered by, and lands correctly even after
+     an edit that moved it. The remembered offset is the fallback for
+     everything with no row to aim at — coming back from "Add item",
+     or a plain browser Back.
+  ------------------------------------------------------------------- */
+  function rememberScroll() {
+    var list = document.querySelector('[data-remember-scroll]');
+    if (!list) return;
+
+    var key = 'unika:scroll:' + window.location.pathname + window.location.search;
+
+    // Let the browser handle a hash itself, then mark the row so the eye
+    // finds it — scroll-margin-top in the stylesheet keeps it clear of the
+    // sticky topbar.
+    var target = window.location.hash ? document.querySelector(window.location.hash) : null;
+    if (target) {
+      target.classList.add('is-returned');
+      setTimeout(function () { target.classList.remove('is-returned'); }, 2400);
+    } else {
+      var saved = parseInt(sessionStorage.getItem(key) || '', 10);
+      if (!isNaN(saved) && saved > 0) {
+        window.scrollTo(0, saved);
+      }
+    }
+
+    var store = function () {
+      try { sessionStorage.setItem(key, String(window.scrollY)); } catch (e) { /* private mode */ }
+    };
+    window.addEventListener('pagehide', store);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') store();
+    });
+  }
+
+  /* --- copy a link to the clipboard ---------------------------------- */
+  function copyButtons() {
+    document.querySelectorAll('[data-copy]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var source = document.querySelector(btn.getAttribute('data-copy'));
+        if (!source) return;
+
+        var value = source.value !== undefined ? source.value : source.textContent;
+        var done = function (ok) {
+          var label = btn.innerHTML;
+          btn.classList.add(ok ? 'is-copied' : 'is-copy-failed');
+          btn.innerHTML = ok
+            ? '<i class="fa-solid fa-check"></i> Copied'
+            : '<i class="fa-solid fa-triangle-exclamation"></i> Press Ctrl+C';
+          setTimeout(function () {
+            btn.classList.remove('is-copied', 'is-copy-failed');
+            btn.innerHTML = label;
+          }, 2000);
+        };
+
+        // The async clipboard API needs a secure context; a plain-http admin
+        // panel on a local network does not have one, so the old selection
+        // route stays as the fallback rather than the button doing nothing.
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(value).then(function () { done(true); }, function () { selectFallback(source, done); });
+        } else {
+          selectFallback(source, done);
+        }
+      });
+    });
+  }
+
+  function selectFallback(source, done) {
+    if (source.select) {
+      source.focus();
+      source.select();
+      source.setSelectionRange(0, 99999);
+    }
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    done(ok);
   }
 
   /* --- stop accidental double submits ------------------------------- */
