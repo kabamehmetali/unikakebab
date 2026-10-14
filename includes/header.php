@@ -128,12 +128,12 @@ $breadcrumbs = $breadcrumbs ?? [];
 <link rel="sitemap" type="application/xml" title="Sitemap" href="<?= e(url('sitemap.xml')) ?>">
 <?php endif; ?>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+<!-- Fonts (Anton, Outfit), Bootstrap 5.3.3 and Font Awesome 6.5.2 are served
+     from assets/vendor/ rather than their CDNs, so the page is styled even
+     where a content security policy keeps every other origin out. -->
+<link href="<?= e(asset('assets/vendor/fonts/fonts.css')) ?>" rel="stylesheet">
+<link href="<?= e(asset('assets/vendor/bootstrap/css/bootstrap.min.css')) ?>" rel="stylesheet">
+<link href="<?= e(asset('assets/vendor/fontawesome/css/all.min.css')) ?>" rel="stylesheet">
 <link href="<?= e(asset('assets/css/style.css')) ?>" rel="stylesheet">
 <?php if ($pageCss !== '' && file_exists(APP_ROOT . '/assets/css/pages/' . $pageCss)): ?>
 <link href="<?= e(asset('assets/css/pages/' . $pageCss)) ?>" rel="stylesheet">

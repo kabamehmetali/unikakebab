@@ -38,11 +38,9 @@ function a_nav(string $key, string $href, string $icon, string $label, string $a
 <link rel="icon" type="image/png" sizes="32x32" href="<?= e(site_icon('favicon-32')) ?>">
 <link rel="apple-touch-icon" sizes="180x180" href="<?= e(site_icon('apple-touch')) ?>">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap-grid.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+<link href="<?= e(asset('assets/vendor/fonts/fonts.css')) ?>" rel="stylesheet">
+<link href="<?= e(asset('assets/vendor/bootstrap/css/bootstrap-grid.min.css')) ?>" rel="stylesheet">
+<link href="<?= e(asset('assets/vendor/fontawesome/css/all.min.css')) ?>" rel="stylesheet">
 <link href="<?= e(asset('admin/assets/css/admin.css')) ?>" rel="stylesheet">
 </head>
 <body>
@@ -70,6 +68,7 @@ function a_nav(string $key, string $href, string $icon, string $label, string $a
         a_nav('items',      'items.php',      'fa-solid fa-burger',       'Menu Items',  $activeNav);
         a_nav('order-links', 'order-links.php', 'fa-solid fa-bag-shopping', 'Order Links', $activeNav);
         a_nav('store',      'store.php',      'fa-solid fa-store',        'Store Info',  $activeNav);
+        a_nav('neighbourhoods', 'neighbourhoods.php', 'fa-solid fa-map-location-dot', 'Neighbourhoods', $activeNav);
       ?>
 
       <li class="a-side__group">Email marketing</li>

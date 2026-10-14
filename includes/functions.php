@@ -316,11 +316,43 @@ function contact_sms_body(string $sender, string $email, string $phone, string $
          . ($body !== '' ? $body : 'Not provided');
 }
 
+/**
+ * A phone number in E.164 — "+14165162087" — whatever the admin typed.
+ *
+ * Ten digits are read as North American and given the +1; a number that
+ * already carries a country code is left alone. Both schema.org and tel:
+ * want this form, and the old behaviour of simply stripping punctuation
+ * turned a perfectly ordinary "(416) 516-2087" into "tel:4165162087" — a
+ * link that still dials from a Toronto handset and fails from anywhere
+ * else, which is most of the people who find a restaurant through search.
+ */
+function phone_e164(?string $phone): string
+{
+    $raw = trim((string)$phone);
+    if ($raw === '') {
+        return '';
+    }
+
+    $hasCountry = str_starts_with($raw, '+');
+    $digits     = preg_replace('/\D/', '', $raw);
+
+    if ($digits === '') {
+        return '';
+    }
+    if ($hasCountry) {
+        return '+' . $digits;
+    }
+    if (strlen($digits) === 10) {
+        return '+1' . $digits;                  // NANP, country code omitted
+    }
+
+    return '+' . $digits;
+}
+
 /** A tel: href built from a human-readable phone number. */
 function phone_href(?string $phone): string
 {
-    $digits = preg_replace('/[^0-9+]/', '', (string)$phone);
-    return 'tel:' . $digits;
+    return 'tel:' . (phone_e164($phone) ?: preg_replace('/[^0-9+]/', '', (string)$phone));
 }
 
 // =====================================================================
@@ -374,10 +406,27 @@ function setting_set_many(array $pairs): void
  *   priority  sitemap <priority>
  *   changefreq sitemap <changefreq>
  *   public    include in sitemap.xml / robots.txt at all
+ *   desc      optional meta description, for pages whose copy lives in a table
+ *   og_image  optional per-page share image
+ *
+ * The six core pages are declared here; the neighbourhood landing pages are
+ * appended from the database underneath them.
+ *
+ * Registering a page here is not optional bookkeeping. page_meta() falls back
+ * to index.php for a key it does not recognise, which would give every
+ * unregistered page a canonical pointing at the home page — the one mistake
+ * that reliably keeps a page out of the index altogether.
  */
 function seo_pages(): array
 {
-    return [
+    // page_meta() calls this on every render and the admin SEO editor calls it
+    // in a loop, so the database is read at most once per request.
+    static $pages = null;
+    if ($pages !== null) {
+        return $pages;
+    }
+
+    $pages = [
         'home' => [
             'file' => 'index.php', 'label' => 'Home',
             'priority' => '1.0', 'changefreq' => 'weekly', 'public' => true,
@@ -411,6 +460,205 @@ function seo_pages(): array
             'priority' => '0.1', 'changefreq' => 'yearly', 'public' => false,
         ],
     ];
+
+    // Neighbourhood landing pages. The "nb-" prefix keeps their keys from ever
+    // colliding with a core page, and 'file' is the bare slug — clean_path()
+    // leaves an extension-less path alone, so abs_url() yields
+    // https://unikakebab.com/kebab-in-king-west-toronto with no .php to strip.
+    //
+    // A row that is not active is not a page at all: neighbourhood.php answers
+    // 404 for it, and leaving it out here keeps it out of the sitemap and out
+    // of every link block. That is the release switch for the staged rollout.
+    try {
+        $rows = db_all('SELECT slug, name, page_title, meta_desc, meta_keywords, og_image
+                          FROM neighbourhoods
+                         WHERE is_active = 1
+                      ORDER BY sort_order, id');
+    } catch (PDOException $e) {
+        // The table has not been migrated yet. The core pages still render.
+        $rows = [];
+    }
+
+    foreach ($rows as $row) {
+        $pages['nb-' . $row['slug']] = [
+            'file'       => (string)$row['slug'],
+            'title'      => trim((string)($row['page_title'] ?? '')),
+            'label'      => (string)$row['name'],
+            'desc'       => (string)($row['meta_desc'] ?? ''),
+            'keywords'   => (string)($row['meta_keywords'] ?? ''),
+            'og_image'   => (string)($row['og_image'] ?? ''),
+            'priority'   => '0.7',
+            'changefreq' => 'monthly',
+            'public'     => true,
+        ];
+    }
+
+    return $pages;
+}
+
+// =====================================================================
+//  Toronto zones
+//
+//  The 158 official City of Toronto neighbourhoods, each with the district
+//  it sits in and its straight-line distance from the shop. Reference data
+//  rather than editorial: it lets the locations page answer "how far is it
+//  from where I am?" for anywhere in the city without needing a written
+//  page per area — which is the difference between a useful directory and
+//  158 near-identical landing pages.
+// =====================================================================
+
+/** Every listed Toronto zone, nearest first. */
+function toronto_zones(): array
+{
+    static $zones = null;
+
+    if ($zones === null) {
+        try {
+            $zones = db_all('SELECT * FROM toronto_zones
+                              WHERE is_active = 1
+                           ORDER BY distance_km, name');
+        } catch (PDOException $e) {
+            $zones = [];               // table not migrated yet
+        }
+    }
+
+    return $zones;
+}
+
+/**
+ * The same zones grouped by district, districts ordered by whichever holds
+ * the nearest neighbourhood — so Old Toronto leads and Scarborough closes,
+ * which is also the order a reader would guess.
+ */
+function toronto_zones_by_district(): array
+{
+    $grouped = [];
+
+    foreach (toronto_zones() as $zone) {
+        $grouped[(string)$zone['district']][] = $zone;
+    }
+
+    uasort($grouped, static function (array $a, array $b): int {
+        return ((float)$a[0]['distance_km']) <=> ((float)$b[0]['distance_km']);
+    });
+
+    return $grouped;
+}
+
+/**
+ * How to describe the journey, in words rather than a number.
+ *
+ * Deliberately vague at the top end: the distance is a straight line, and
+ * turning 14 km of straight line into a confident "32 minutes" would be
+ * inventing a number the routing engine is about to contradict.
+ */
+function zone_travel_band(?float $km): string
+{
+    if ($km === null) {
+        return '';
+    }
+    if ($km <= 2)  { return 'Walkable'; }
+    if ($km <= 5)  { return 'Short ride'; }
+    if ($km <= 12) { return 'A drive across the west end'; }
+
+    return 'A trip across town';
+}
+
+/** Google Maps directions from a zone centroid to the shop. */
+function zone_directions_url(array $zone): string
+{
+    $origin = (!empty($zone['latitude']) && !empty($zone['longitude']))
+        ? $zone['latitude'] . ',' . $zone['longitude']
+        : trim((string)$zone['name']) . ', Toronto';
+
+    $destination = store_address() !== ''
+        ? store_address()
+        : setting('site_name', 'Unika Kebab') . ', Toronto';
+
+    return 'https://www.google.com/maps/dir/?api=1'
+         . '&origin=' . urlencode($origin)
+         . '&destination=' . urlencode($destination);
+}
+
+/**
+ * The embedded map for a zone, in directions mode.
+ *
+ * Returns '' when no Maps key is configured, and every caller falls back to
+ * plain links rather than printing a broken iframe.
+ */
+function zone_embed_url(array $zone): string
+{
+    $key = trim(setting('google_maps_api_key'));
+    if ($key === '') {
+        return '';
+    }
+
+    $store = store();
+    $dest  = (!empty($store['latitude']) && !empty($store['longitude']))
+        ? $store['latitude'] . ',' . $store['longitude']
+        : store_address();
+
+    $origin = (!empty($zone['latitude']) && !empty($zone['longitude']))
+        ? $zone['latitude'] . ',' . $zone['longitude']
+        : trim((string)$zone['name']) . ', Toronto';
+
+    return 'https://www.google.com/maps/embed/v1/directions'
+         . '?key=' . urlencode($key)
+         . '&origin=' . urlencode($origin)
+         . '&destination=' . urlencode($dest)
+         . '&mode=driving';
+}
+
+/** Every live neighbourhood row, in display order. */
+function neighbourhoods(bool $activeOnly = true): array
+{
+    static $cache = [];
+    $key = $activeOnly ? 'live' : 'all';
+
+    if (!isset($cache[$key])) {
+        try {
+            $cache[$key] = db_all(
+                'SELECT * FROM neighbourhoods'
+                . ($activeOnly ? ' WHERE is_active = 1' : '')
+                . ' ORDER BY sort_order, id'
+            );
+        } catch (PDOException $e) {
+            $cache[$key] = [];
+        }
+    }
+
+    return $cache[$key];
+}
+
+/** One neighbourhood by slug, or null. Only ever returns a live row. */
+function neighbourhood(string $slug): ?array
+{
+    foreach (neighbourhoods() as $row) {
+        if (strcasecmp((string)$row['slug'], $slug) === 0) {
+            return $row;
+        }
+    }
+    return null;
+}
+
+/**
+ * The 2-3 sibling pages a neighbourhood links out to, resolved from its
+ * comma-separated "neighbours" column. Anything that is not live is dropped,
+ * so deactivating a page never leaves a dead link behind on its siblings.
+ */
+function neighbourhood_siblings(array $row): array
+{
+    $wanted = array_filter(array_map('trim', explode(',', (string)($row['neighbours'] ?? ''))));
+    $out    = [];
+
+    foreach ($wanted as $slug) {
+        $sibling = neighbourhood($slug);
+        if ($sibling && (string)$sibling['slug'] !== (string)$row['slug']) {
+            $out[] = $sibling;
+        }
+    }
+
+    return $out;
 }
 
 /**
@@ -469,6 +717,15 @@ function page_meta(string $page): array
     // a site can send that its pages are duplicates of each other. The label
     // always leads now; the suffix is only ever an addition.
     $title = setting("meta_{$page}_title", '');
+
+    // A page whose copy lives in its own table supplies the whole title,
+    // brand included. Appending the site suffix to it as well would push a
+    // perfectly good 55-character title past 90 and get it rewritten by
+    // Google, so a row that states its title is taken at its word.
+    if ($title === '') {
+        $title = trim((string)($pages[$page]['title'] ?? ''));
+    }
+
     if ($title === '') {
         $label = $pages[$page]['label'] ?? $siteName;
         $tail  = $suffix !== '' ? $suffix : $siteName;
@@ -480,9 +737,14 @@ function page_meta(string $page): array
 
     // An empty description is not neutral: Google writes its own from whatever
     // text it finds first, which on this site is the navigation.
+    //
+    // The page's own row is preferred over the sitewide fallback. Without that
+    // step every neighbourhood page would inherit footer_about and ship an
+    // identical description — the same "these pages are duplicates" signal the
+    // title fallback above was written to avoid.
     $desc = setting("meta_{$page}_desc", '');
     if (trim($desc) === '') {
-        $desc = setting('footer_about', '');
+        $desc = trim((string)($pages[$page]['desc'] ?? '')) ?: setting('footer_about', '');
     }
     $canonical = trim(setting("meta_{$page}_canonical", ''));
     $ogImage   = trim(setting("meta_{$page}_og_image", ''));
@@ -491,12 +753,16 @@ function page_meta(string $page): array
         'key'          => $page,
         'title'        => $title,
         'desc'         => $desc,
-        'keywords'     => setting("meta_{$page}_keywords", ''),
+        'keywords'     => setting("meta_{$page}_keywords", '') ?: (string)($pages[$page]['keywords'] ?? ''),
         'robots'       => setting("meta_{$page}_robots", '') ?: setting('seo_default_robots', 'index, follow'),
         'canonical'    => $canonical !== '' ? abs_url($canonical) : abs_url($file),
         'og_title'     => setting("meta_{$page}_og_title", '') ?: $title,
         'og_desc'      => setting("meta_{$page}_og_desc", '') ?: $desc,
-        'og_image'     => abs_media($ogImage !== '' ? $ogImage : setting('og_image', 'assets/img/logo.png')),
+        'og_image'     => abs_media(
+            $ogImage !== ''
+                ? $ogImage
+                : (trim((string)($pages[$page]['og_image'] ?? '')) ?: setting('og_image', 'assets/img/logo.png'))
+        ),
         'og_image_alt' => setting("meta_{$page}_og_image_alt", '') ?: setting('og_image_alt', $siteName),
     ];
 }
@@ -536,6 +802,56 @@ function store_country_code(): string
     }
     // Already a code, or nothing usable — default to Canada.
     return (strlen($country) === 2) ? strtoupper($country) : 'CA';
+}
+
+/**
+ * The Google Business Profile listing as a stable URL.
+ *
+ * The maps.app.goo.gl address an owner copies out of the phone app is a
+ * shortener Google is free to retire; the CID is the listing's permanent
+ * numeric identity and survives a rename, a move or a re-verification. It is
+ * the form worth publishing in hasMap and sameAs, which is what tells Google
+ * that this website and that pin are the same business — the link that is
+ * currently missing in both directions.
+ *
+ * Empty until the CID is filled in under Settings, and every consumer below
+ * degrades to the share link rather than printing a broken URL.
+ */
+function store_map_cid_url(): string
+{
+    $cid = preg_replace('/[^0-9]/', '', setting('store_map_cid', ''));
+    return $cid === '' ? '' : 'https://maps.google.com/?cid=' . $cid;
+}
+
+/** hasMap: the CID form when it is known, otherwise whatever share link exists. */
+function store_map_url(): string
+{
+    return store_map_cid_url() ?: store_map_share_url('');
+}
+
+/**
+ * Where the restaurant actually serves, as schema.org Places.
+ *
+ * This hangs off the Restaurant node, which carries one @id across every page
+ * on the site — so it deliberately does NOT vary per page. Saying the business
+ * serves a different set of areas depending on which URL you landed on is a
+ * contradiction about a single entity, and contradictions are what stop a
+ * knowledge panel resolving at all.
+ */
+function seo_area_served(): array
+{
+    $city  = trim((string)(store()['city'] ?? 'Toronto'));
+    $areas = [['@type' => 'City', 'name' => $city]];
+
+    // The shop's own neighbourhood leads, then everywhere it has said it serves.
+    foreach (array_merge(['Liberty Village'], array_column(neighbourhoods(), 'name')) as $name) {
+        $name = trim((string)$name);
+        if ($name !== '') {
+            $areas[] = ['@type' => 'Place', 'name' => $name . ', ' . $city];
+        }
+    }
+
+    return $areas;
 }
 
 /** Opening hours in the openingHoursSpecification shape schema.org expects. */
@@ -662,9 +978,11 @@ function seo_structured_data(string $pageKey, array $meta, array $breadcrumbs = 
         'description'   => setting('footer_about', $meta['desc']),
         'servesCuisine' => ['Turkish', 'Middle Eastern', 'Kebab', 'Halal'],
         'priceRange'    => setting('seo_price_range', '$$'),
-        'telephone'     => $s['phone'] ?? '',
+        'telephone'     => phone_e164($s['phone'] ?? '') ?: ($s['phone'] ?? ''),
         'email'         => $s['email'] ?? '',
         'hasMenu'       => abs_url('menu.php'),
+        'hasMap'        => store_map_url(),
+        'areaServed'    => seo_area_served(),
         'acceptsReservations' => 'False',
         'address'       => array_filter([
             '@type'           => 'PostalAddress',
@@ -680,10 +998,14 @@ function seo_structured_data(string $pageKey, array $meta, array $breadcrumbs = 
             'longitude' => (float)$s['longitude'],
         ] : null,
         'openingHoursSpecification' => seo_opening_hours(),
-        'sameAs' => array_values(array_map(
-            static fn(array $social): string => $social['url'],
-            store_socials()
-        )),
+        // The socials plus the Maps listing. A sameAs that names every profile
+        // except the Google one leaves the site and the pin as two unrelated
+        // entities as far as Google is concerned, which is precisely the
+        // problem when a listing shows under the wrong name.
+        'sameAs' => array_values(array_unique(array_filter(array_merge(
+            array_map(static fn(array $social): string => $social['url'], store_socials()),
+            [store_map_cid_url(), store_map_share_url('')]
+        )))),
     ], static fn($value): bool => $value !== null && $value !== '' && $value !== []);
 
     $graph = [
@@ -722,6 +1044,56 @@ function seo_structured_data(string $pageKey, array $meta, array $breadcrumbs = 
         $menu = seo_menu_graph($home);
         if ($menu !== null) {
             $graph[] = $menu;
+        }
+    }
+
+    // A neighbourhood page is about the one restaurant, but its content concerns
+    // a different place — contentLocation says exactly that without inventing a
+    // second address. A fabricated per-page PostalAddress is a far faster way to
+    // lose a listing than thin content ever was, so the Restaurant node is
+    // referenced by @id here and never redeclared.
+    if (str_starts_with($pageKey, 'nb-')) {
+        $row = neighbourhood(substr($pageKey, 3));
+
+        if ($row) {
+            $city = trim((string)(store()['city'] ?? 'Toronto'));
+
+            $graph[] = array_filter([
+                '@type'       => 'Place',
+                '@id'         => $meta['canonical'] . '#area',
+                'name'        => trim((string)$row['name']) . ', ' . $city,
+                'description' => trim((string)($row['meta_desc'] ?? '')),
+            ], static fn($v): bool => $v !== null && $v !== '');
+
+            // Attach the area to the page node rather than to the restaurant.
+            foreach ($graph as $i => $node) {
+                if (($node['@type'] ?? '') === 'WebPage') {
+                    $graph[$i]['contentLocation'] = ['@id' => $meta['canonical'] . '#area'];
+                    break;
+                }
+            }
+
+            $faqs = [];
+            foreach ([1, 2, 3] as $n) {
+                $q = trim((string)($row["faq{$n}_q"] ?? ''));
+                $a = trim((string)($row["faq{$n}_a"] ?? ''));
+                if ($q !== '' && $a !== '') {
+                    $faqs[] = [
+                        '@type'          => 'Question',
+                        'name'           => $q,
+                        'acceptedAnswer' => ['@type' => 'Answer', 'text' => $a],
+                    ];
+                }
+            }
+
+            if ($faqs) {
+                $graph[] = [
+                    '@type'      => 'FAQPage',
+                    '@id'        => $meta['canonical'] . '#faq',
+                    'isPartOf'   => ['@id' => $meta['canonical'] . '#webpage'],
+                    'mainEntity' => $faqs,
+                ];
+            }
         }
     }
 
@@ -1282,6 +1654,169 @@ function mask_secret(?string $value, int $head = 4, int $tail = 4): string
  * Validate and store an uploaded image, converting to WebP when GD allows it.
  * Returns the path to save in the database, or null with $error filled in.
  */
+/**
+ * Remove every metadata block from an image, in place, without re-encoding.
+ *
+ * Uploads normally go through GD, which throws metadata away as a side effect
+ * of re-encoding. The fallback path in save_upload() does not — it keeps the
+ * file byte for byte — so an image carrying C2PA Content Credentials, an EXIF
+ * block or an embedded XMP packet would be published with all of it intact.
+ * This closes that gap on the three formats the uploader accepts.
+ *
+ * Deliberately strict and deliberately timid: anything unexpected in the byte
+ * stream aborts the whole operation and leaves the file untouched, and the
+ * result is only written once it still parses as the same image. A metadata
+ * block surviving is a small problem; a corrupted upload is a bigger one.
+ *
+ * Colour fidelity is preserved — ICC profiles (JPEG APP2, PNG iCCP, WebP ICCP)
+ * are kept, since dropping those visibly shifts the colours.
+ *
+ * Returns true when the file was rewritten, false when it was left alone.
+ */
+function strip_image_metadata(string $path): bool
+{
+    $data = @file_get_contents($path);
+    if ($data === false || strlen($data) < 12) {
+        return false;
+    }
+
+    $before = @getimagesize($path);
+    if ($before === false) {
+        return false;
+    }
+
+    $out = null;
+
+    // ---- JPEG ---------------------------------------------------------
+    if (substr($data, 0, 2) === "\xFF\xD8") {
+        $out = "\xFF\xD8";
+        $i   = 2;
+        $len = strlen($data);
+
+        while ($i + 4 <= $len) {
+            if ($data[$i] !== "\xFF") {
+                return false;                       // not a marker: give up
+            }
+            $marker = ord($data[$i + 1]);
+
+            if ($marker === 0xD8 || ($marker >= 0xD0 && $marker <= 0xD7) || $marker === 0x01) {
+                $out .= substr($data, $i, 2);       // standalone marker
+                $i   += 2;
+                continue;
+            }
+
+            $size = (ord($data[$i + 2]) << 8) | ord($data[$i + 3]);
+            if ($size < 2 || $i + 2 + $size > $len) {
+                return false;                       // malformed length
+            }
+
+            // APP0 is JFIF and APP2 carries the ICC profile; both stay.
+            // Every other APPn — APP1 EXIF/XMP, APP11 JUMBF/C2PA, APP13 IPTC —
+            // and the comment segment are dropped.
+            $isApp     = $marker >= 0xE0 && $marker <= 0xEF;
+            $keepApp   = $marker === 0xE0 || $marker === 0xE2;
+            $isComment = $marker === 0xFE;
+
+            if (!(($isApp && !$keepApp) || $isComment)) {
+                $out .= substr($data, $i, 2 + $size);
+            }
+            $i += 2 + $size;
+
+            if ($marker === 0xDA) {                 // start of scan
+                $out .= substr($data, $i);          // entropy data to the end
+                break;
+            }
+        }
+    }
+
+    // ---- PNG ----------------------------------------------------------
+    elseif (substr($data, 0, 8) === "\x89PNG\r\n\x1a\n") {
+        // Everything that carries pixels, palette or colour intent is kept.
+        // tEXt/zTXt/iTXt/eXIf hold EXIF and XMP; caBX is the C2PA store.
+        $keep = ['IHDR', 'PLTE', 'IDAT', 'IEND', 'tRNS', 'gAMA', 'cHRM',
+                 'sRGB', 'iCCP', 'bKGD', 'pHYs', 'sBIT', 'hIST', 'sPLT'];
+
+        $out = substr($data, 0, 8);
+        $i   = 8;
+        $len = strlen($data);
+
+        while ($i + 8 <= $len) {
+            $size = unpack('N', substr($data, $i, 4))[1];
+            $type = substr($data, $i + 4, 4);
+
+            if ($size > $len || $i + 12 + $size > $len) {
+                return false;                       // malformed chunk
+            }
+            if (in_array($type, $keep, true)) {
+                $out .= substr($data, $i, 12 + $size);
+            }
+            $i += 12 + $size;
+
+            if ($type === 'IEND') {
+                break;
+            }
+        }
+    }
+
+    // ---- WebP ---------------------------------------------------------
+    elseif (substr($data, 0, 4) === 'RIFF' && substr($data, 8, 4) === 'WEBP') {
+        $keep = ['VP8 ', 'VP8L', 'VP8X', 'ALPH', 'ANIM', 'ANMF', 'ICCP'];
+        $body = '';
+        $i    = 12;
+        $len  = strlen($data);
+
+        while ($i + 8 <= $len) {
+            $type = substr($data, $i, 4);
+            $size = unpack('V', substr($data, $i + 4, 4))[1];
+            $pad  = $size % 2;                      // chunks are even-aligned
+
+            if ($i + 8 + $size + $pad > $len + 1) {
+                return false;
+            }
+
+            if (in_array($type, $keep, true)) {
+                $chunk = substr($data, $i, 8 + $size + $pad);
+
+                // VP8X advertises which optional chunks follow. Leaving the
+                // EXIF and XMP bits set after removing them makes the file
+                // self-contradictory, so both are cleared.
+                if ($type === 'VP8X' && $size >= 1) {
+                    $flags = ord($chunk[8]) & ~0x0C;   // bit 3 EXIF, bit 2 XMP
+                    $chunk[8] = chr($flags);
+                }
+                $body .= $chunk;
+            }
+            $i += 8 + $size + $pad;
+        }
+
+        $out = 'RIFF' . pack('V', 4 + strlen($body)) . 'WEBP' . $body;
+    }
+
+    if ($out === null || $out === '' || $out === $data) {
+        return false;                               // unknown format, or nothing to do
+    }
+
+    // Only publish the stripped copy once it still reads as the same picture.
+    $tmp = $path . '.strip';
+    if (@file_put_contents($tmp, $out) === false) {
+        return false;
+    }
+
+    $after = @getimagesize($tmp);
+    if ($after === false || $after[0] !== $before[0] || $after[1] !== $before[1]) {
+        @unlink($tmp);
+        return false;
+    }
+
+    if (!@rename($tmp, $path)) {
+        @unlink($tmp);
+        return false;
+    }
+
+    @chmod($path, 0664);
+    return true;
+}
+
 function save_upload(array $file, string $folder = 'menu', string $prefix = 'img', ?string &$error = null): ?string
 {
     if (!isset($file['error']) || $file['error'] === UPLOAD_ERR_NO_FILE) {
@@ -1375,11 +1910,17 @@ function save_upload(array $file, string $folder = 'menu', string $prefix = 'img
     }
 
     // Fallback: keep the original file as-is.
+    //
+    // "As-is" used to include whatever the camera, the phone or the image
+    // generator wrote into it — EXIF, XMP, and C2PA Content Credentials all
+    // survive a straight move. The GD path above drops those as a side effect
+    // of re-encoding; this path has to do it deliberately.
     $target = $dir . '/' . $base . '.' . $allowed[$info[2]];
     if (!move_uploaded_file($file['tmp_name'], $target)) {
         $error = 'The image could not be saved to disk.';
         return null;
     }
+    strip_image_metadata($target);
     @chmod($target, 0664);
     return UPLOAD_URL . '/' . $folder . '/' . $base . '.' . $allowed[$info[2]];
 }
@@ -1484,7 +2025,14 @@ function send_sms(string $to, string $body): array
 /** Mark the active navbar link. Takes "menu" or "menu.php" — either spelling. */
 function nav_active(string $page): string
 {
-    $current = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''), '.php');
+    // A page served by a shared handler is not named after the nav item it
+    // belongs under — every /kebab-in-... URL runs neighbourhood.php, which
+    // matches nothing in the navbar and leaves the whole bar unlit. Such a
+    // page names its own nav item instead.
+    $current = isset($GLOBALS['navActive']) && $GLOBALS['navActive'] !== ''
+        ? basename((string)$GLOBALS['navActive'], '.php')
+        : basename((string)($_SERVER['SCRIPT_NAME'] ?? ''), '.php');
+
     return $current === basename($page, '.php') ? ' active' : '';
 }
 

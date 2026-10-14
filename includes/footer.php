@@ -46,6 +46,9 @@ $mapsUrl   = store_map_share_url('https://www.google.com/maps/search/?api=1&quer
           <li><a href="<?= e(url('contact.php')) ?>">Contact Us</a></li>
           <li><a href="<?= e(url('locations.php')) ?>">Locations</a></li>
           <li><a href="<?= e(url('order.php')) ?>">Order Online</a></li>
+          <?php /* /join was reachable from nowhere on the site — a page no
+                   internal link points at is one Google finds late, if at all. */ ?>
+          <li><a href="<?= e(url('join.php')) ?>">Newsletter</a></li>
         </ul>
       </div>
 
@@ -125,7 +128,7 @@ $mapsUrl   = store_map_share_url('https://www.google.com/maps/search/?api=1&quer
   <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
 </button>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= e(asset('assets/vendor/bootstrap/js/bootstrap.bundle.min.js')) ?>"></script>
 <script src="<?= e(asset('assets/js/main.js')) ?>"></script>
 <?php if (!empty($pageJs) && file_exists(APP_ROOT . '/assets/js/' . $pageJs)): ?>
 <script src="<?= e(asset('assets/js/' . $pageJs)) ?>"></script>

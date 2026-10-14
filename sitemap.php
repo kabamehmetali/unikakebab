@@ -96,6 +96,19 @@ $lastmod = [
     'join'      => sitemap_settings_stamp(['newsletter_', 'meta_join_']) ?: $siteStamp,
 ];
 
+// The neighbourhood pages carry their own updated_at, so their <lastmod> is
+// the real thing rather than the site-wide fallback. seo_pages() has already
+// filtered these to the live rows, so a staged-but-unpublished page is never
+// advertised here.
+foreach (seo_pages() as $key => $page) {
+    if (str_starts_with($key, 'nb-')) {
+        $lastmod[$key] = sitemap_stamp(
+            'SELECT updated_at AS ts FROM neighbourhoods WHERE slug = ?',
+            [substr($key, 3)]
+        ) ?: $siteStamp;
+    }
+}
+
 header('Content-Type: application/xml; charset=utf-8');
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 ?>

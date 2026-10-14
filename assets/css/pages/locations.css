@@ -1,0 +1,264 @@
+/* =====================================================================
+   Locations — the Toronto zone locator.
+
+   Loaded only by locations.php (see $pageCss in includes/header.php), so
+   none of this weighs on any other page. Everything below reuses the
+   variables declared in assets/css/style.css; no new colours are invented.
+   ===================================================================== */
+
+.zone-locator {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 991.98px) {
+  .zone-locator { grid-template-columns: 1fr; }
+}
+
+/* ---------------------------------------------------------------------
+   District tabs
+   --------------------------------------------------------------------- */
+.zone-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.zone-tab {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: background var(--speed) var(--ease),
+              border-color var(--speed) var(--ease),
+              color var(--speed) var(--ease);
+}
+
+.zone-tab span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--cream-2);
+  border-radius: var(--radius-pill);
+  padding: 0.1rem 0.42rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-tab:hover { border-color: var(--gold-deep); }
+
+.zone-tab.is-active {
+  background: var(--char);
+  border-color: var(--char);
+  color: var(--cream);
+}
+.zone-tab.is-active span { background: rgba(255, 248, 236, 0.16); color: var(--gold-light); }
+
+.zone-tab:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Six districts wrap to three rows on a phone and eat 138px before the list
+   even starts. Below the stacking breakpoint they become one scrolling strip
+   instead — the same move the menu category bar makes. */
+@media (max-width: 767.98px) {
+  .zone-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
+    /* let the strip run to the container edge rather than stopping short */
+    margin-inline: -0.75rem;
+    padding-inline: 0.75rem;
+  }
+  .zone-tabs::-webkit-scrollbar { display: none; }
+  .zone-tab { flex: 0 0 auto; }
+
+  /* A shorter list on a phone: the map and the readout should still be
+     reachable without scrolling past 30 neighbourhoods to get to them. */
+  .zone-list { max-height: 320px; }
+}
+
+/* ---------------------------------------------------------------------
+   Zone list
+   --------------------------------------------------------------------- */
+.zone-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 460px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+  box-shadow: var(--shadow-sm);
+}
+.zone-list[hidden] { display: none; }
+
+.zone-list::-webkit-scrollbar { width: 10px; }
+.zone-list::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: var(--radius-pill);
+  border: 3px solid var(--cream);
+}
+
+.zone-row {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-family: var(--font-body);
+  color: var(--ink);
+  padding: 0.62rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  transition: background var(--speed) var(--ease);
+}
+
+.zone-row:hover { background: var(--gold-soft); }
+.zone-row:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+
+.zone-row.is-active {
+  background: var(--char);
+  color: var(--cream);
+}
+.zone-row.is-active .zone-row__km { color: var(--gold-light); }
+
+.zone-row__name {
+  font-size: 0.94rem;
+  font-weight: 500;
+  line-height: 1.35;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+/* Marks a neighbourhood we have actually written the journey up for. */
+.zone-row__flag {
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  border: 1px solid var(--gold-deep);
+  border-radius: var(--radius-pill);
+  padding: 0.05rem 0.4rem;
+}
+.zone-row.is-active .zone-row__flag { color: var(--gold-light); border-color: var(--gold-light); }
+
+.zone-row__km {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------
+   Map
+   --------------------------------------------------------------------- */
+.zone-map__frame {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow);
+  background: var(--cream-2);
+  aspect-ratio: 16 / 11;
+}
+
+.zone-map__frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.zone-map__frame--empty {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------------
+   Readout under the map
+   --------------------------------------------------------------------- */
+.zone-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.95rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+  box-shadow: var(--shadow-sm);
+}
+
+.zone-readout__label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  margin-bottom: 0.15rem;
+}
+
+.zone-readout strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.zone-readout__meta {
+  display: block;
+  font-size: 0.84rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-readout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.zone-note {
+  margin: 0.85rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zone-tab, .zone-row { transition: none; }
+}
